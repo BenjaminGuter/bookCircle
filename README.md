@@ -202,9 +202,17 @@ Wenn man mit Git arbeitet gibt es viele nützliche Tools. Diese können in zwei 
 
 ### 5.1 Plattformen für Git Repositories
 
-- GitHub: weit verbreitete Plattform, welche öffentliches Hosting von Repositories erlaubt und organisationsübergreifende Zusammenarbeit ermöglichen kann.
+- GitHub: Weit verbreitete Plattform, welche öffentliches Hosting von Repositories erlaubt und organisationsübergreifende Zusammenarbeit ermöglichen kann.
 - GitLab: Eine weitere weit verbreitete Plattform zum hosten eigener Repositories und Unternehmensinterner Plattformen.
 - Bitbucket: Proprietäre Lösung der Firma Atlassian, welche insbesondere in Zusammenarbeit mit anderen Atlassian-Systemen interessant ist. ein Beispiel wäre hier Jira, oder Confluence.
+
+### 5.2 Programme zum Arbeiten mit Git
+
+- GitHub Desktop: Eine lokale Gui für die Verwendung von Git.
+- Sourcetree: Eine Atlassian Anwendung zur Visualisierung von Git Repositories.
+- Visual Studio Code: Eine mächtige Entwicklungsumgebung mit bereits verbauten Git-Features.
+
+#### 5.2.2 Tools und deren Verwendung
 
 | Verwendung        | Tool                                  |
 | ----------------- | ------------------------------------- |
