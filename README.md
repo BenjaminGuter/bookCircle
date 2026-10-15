@@ -46,17 +46,17 @@ Name und E-Mail-Adresse werden in jedem Commit gespeichert.
 
 ### Befehlsübersicht
 
-| Befehl | Wirkung | Beispiel |
-|--------|---------|----------|
-| `git init` | Legt in einem Ordner ein neues, leeres lokales Repository an. | `git init` |
-| `git clone <url>` | Kopiert ein bestehendes Remote-Repository samt Historie in einen neuen Ordner und richtet `origin` automatisch ein. | `git clone https://github.com/user/projekt.git` |
-| `git status` | Zeigt, welche Dateien geändert, vorgemerkt oder noch nicht versioniert sind. | `git status` |
-| `git add <datei>` | Merkt Änderungen für den nächsten Commit vor (Staging). | `git add README.md` |
-| `git commit -m "<text>"` | Speichert die vorgemerkten Änderungen als Commit im lokalen Repository. | `git commit -m "docs: add section on branches"` |
-| `git push` | Überträgt lokale Commits ins Remote-Repository. Beim ersten Push eines neuen Branches: `git push -u origin <branch>`. | `git push -u origin docs/handout-branches` |
-| `git pull` | (Maxi ausfüllen per commit) | |
-| `git log` | (Jana ausfüllen per commit) | |
-| `git diff` | Zeigt Änderungen im Arbeitsverzeichnis, die noch nicht gestaged sind. Mit `--staged` die vorgemerkten Änderungen. | `git diff --staged` |
+| Befehl                   | Wirkung                                                                                                               | Beispiel                                        |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `git init`               | Legt in einem Ordner ein neues, leeres lokales Repository an.                                                         | `git init`                                      |
+| `git clone <url>`        | Kopiert ein bestehendes Remote-Repository samt Historie in einen neuen Ordner und richtet `origin` automatisch ein.   | `git clone https://github.com/user/projekt.git` |
+| `git status`             | Zeigt, welche Dateien geändert, vorgemerkt oder noch nicht versioniert sind.                                          | `git status`                                    |
+| `git add <datei>`        | Merkt Änderungen für den nächsten Commit vor (Staging).                                                               | `git add README.md`                             |
+| `git commit -m "<text>"` | Speichert die vorgemerkten Änderungen als Commit im lokalen Repository.                                               | `git commit -m "docs: add section on branches"` |
+| `git push`               | Überträgt lokale Commits ins Remote-Repository. Beim ersten Push eines neuen Branches: `git push -u origin <branch>`. | `git push -u origin docs/handout-branches`      |
+| `git pull`               | (Maxi ausfüllen per commit)                                                                                           |                                                 |
+| `git log`                | (Jana ausfüllen per commit)                                                                                           |                                                 |
+| `git diff`               | Zeigt Änderungen im Arbeitsverzeichnis, die noch nicht gestaged sind. Mit `--staged` die vorgemerkten Änderungen.     | `git diff --staged`                             |
 
 ### Typischer Ablauf
 
@@ -97,13 +97,13 @@ Ist die Arbeit fertig, wird der Branch in `main` zusammengeführt
 
 ### Wichtige Befehle
 
-| Befehl | Wirkung |
-|--------|---------|
-| `git branch` | Listet lokale Branches, der aktive ist markiert. |
-| `git switch -c <name>` | Legt einen neuen Branch an und wechselt direkt hinein. |
-| `git switch <name>` | Wechselt auf einen bestehenden Branch. |
-| `git merge <name>` | Führt den genannten Branch in den aktuell aktiven zusammen. |
-| `git branch -d <name>` | Löscht einen Branch, der bereits gemerged wurde. |
+| Befehl                 | Wirkung                                                     |
+| ---------------------- | ----------------------------------------------------------- |
+| `git branch`           | Listet lokale Branches, der aktive ist markiert.            |
+| `git switch -c <name>` | Legt einen neuen Branch an und wechselt direkt hinein.      |
+| `git switch <name>`    | Wechselt auf einen bestehenden Branch.                      |
+| `git merge <name>`     | Führt den genannten Branch in den aktuell aktiven zusammen. |
+| `git branch -d <name>` | Löscht einen Branch, der bereits gemerged wurde.            |
 
 Ältere Git-Versionen kennen `git switch` noch nicht. Dort entspricht
 `git checkout -b <name>` bzw. `git checkout <name>` dem gleichen Zweck.
@@ -131,11 +131,7 @@ Version gelten soll. Das ist normal und kein Fehler.
 Git markiert die betroffene Stelle in der Datei:
 
 ```
-<<<<<<< HEAD
 Version aus dem aktuellen Branch
-=======
-Version aus dem Branch, der gemerged wird
->>>>>>> docs/andere-branch
 ```
 
 **So wird ein Konflikt gelöst:**
@@ -178,38 +174,52 @@ neuere als **Git**).
 
 ### Wichtige Funktionen
 
-| Aufgabe | Vorgehen in der IDE |
-|---------|---------------------|
-| Projekt aus Remote holen | Beim Start bzw. im Menü *Get from Version Control* bzw. *Clone* wählen und die Repository-URL eingeben. |
-| Bestehendes Projekt unter Versionskontrolle stellen | Im Menü *Git* bzw. *VCS* die Option zum Anlegen eines Git-Repositorys wählen. |
-| Änderungen committen | Fenster **Commit** öffnen (Standard-Tastenkürzel `Strg+K`), Dateien auswählen, Nachricht schreiben, *Commit*. |
-| Änderungen pushen | Menü *Git → Push* (Standard-Tastenkürzel `Strg+Shift+K`). |
-| Änderungen vom Remote holen | Menü *Git → Pull* bzw. *Update Project*. |
-| Branch wechseln oder anlegen | Branch-Anzeige in der Titel- bzw. Statusleiste anklicken, dann *New Branch* oder einen Branch auswählen. |
-| Konflikte lösen | Bei einem Konflikt öffnet die IDE einen Merge-Dialog mit drei Ansichten (links eigene Version, rechts die andere, in der Mitte das Ergebnis). |
-| Historie ansehen | Fenster **Git** bzw. **Version Control** mit dem Reiter *Log*. |
-| Remote verwalten | Menü *Git → Manage Remotes*. |
+| Aufgabe                                             | Vorgehen in der IDE                                                                                                                           |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Projekt aus Remote holen                            | Beim Start bzw. im Menü _Get from Version Control_ bzw. _Clone_ wählen und die Repository-URL eingeben.                                       |
+| Bestehendes Projekt unter Versionskontrolle stellen | Im Menü _Git_ bzw. _VCS_ die Option zum Anlegen eines Git-Repositorys wählen.                                                                 |
+| Änderungen committen                                | Fenster **Commit** öffnen (Standard-Tastenkürzel `Strg+K`), Dateien auswählen, Nachricht schreiben, _Commit_.                                 |
+| Änderungen pushen                                   | Menü _Git → Push_ (Standard-Tastenkürzel `Strg+Shift+K`).                                                                                     |
+| Änderungen vom Remote holen                         | Menü _Git → Pull_ bzw. _Update Project_.                                                                                                      |
+| Branch wechseln oder anlegen                        | Branch-Anzeige in der Titel- bzw. Statusleiste anklicken, dann _New Branch_ oder einen Branch auswählen.                                      |
+| Konflikte lösen                                     | Bei einem Konflikt öffnet die IDE einen Merge-Dialog mit drei Ansichten (links eigene Version, rechts die andere, in der Mitte das Ergebnis). |
+| Historie ansehen                                    | Fenster **Git** bzw. **Version Control** mit dem Reiter _Log_.                                                                                |
+| Remote verwalten                                    | Menü _Git → Manage Remotes_.                                                                                                                  |
 
 Dateien, die nicht versioniert werden sollen, trägt man in die
 `.gitignore` ein. Die IDE zeigt ignorierte Dateien in der Projektansicht
 farblich abgesetzt an.
 
 Ein Konto der Plattform (z. B. GitHub) lässt sich in den Einstellungen
-unter *Version Control* hinterlegen, damit Push und Clone ohne manuelle
+unter _Version Control_ hinterlegen, damit Push und Clone ohne manuelle
 Zugangsdaten funktionieren.
 
 ---
 
 ## 5. Nützliche Git-Tools und Plattformen
 
-(Maxi ergänzen per commit)
+Wenn man mit Git arbeitet gibt es viele nützliche Tools. Diese können in zwei Zwecke eingeordnet werden:
+
+### 5.1 Plattformen für Git Repositories
+
+- GitHub: weit verbreitete Plattform, welche öffentliches Hosting von Repositories erlaubt und organisationsübergreifende Zusammenarbeit ermöglichen kann.
+- GitLab: Eine weitere weit verbreitete Plattform zum hosten eigener Repositories und Unternehmensinterner Plattformen.
+- Bitbucket: Proprietäre Lösung der Firma Atlassian, welche insbesondere in Zusammenarbeit mit anderen Atlassian-Systemen interessant ist. ein Beispiel wäre hier Jira, oder Confluence.
+
+| Verwendung        | Tool                                  |
+| ----------------- | ------------------------------------- |
+| Code-Hosting      | GitHub, GitLab                        |
+| Code-Editor       | VS Code, IntelliJ IDEA, Vim           |
+| Git-GUI           | GitHub Desktop, GitKraken, Sourcetree |
+| CI/CD             | GitHub Actions, GitLab CI/CD, Jenkins |
+| Projektmanagement | Jira, GitHub Issues, GitLab Issues    |
 
 ---
 
 ## 6. Beiträge der Teammitglieder
 
-| Teammitglied | Beitrag |
-|--------------|---------|
-| Ben | Kapitel 2 / 3 / 4|
-| Maxi | Kapitel 5 |
-| Jana | Kapitel 1 |
+| Teammitglied | Beitrag           |
+| ------------ | ----------------- |
+| Ben          | Kapitel 2 / 3 / 4 |
+| Maxi         | Kapitel 5         |
+| Jana         | Kapitel 1         |
