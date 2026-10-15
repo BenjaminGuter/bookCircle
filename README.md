@@ -19,7 +19,7 @@ Pull Requests erstellt.
 
 Git ist ein verteiltes Versionskontrollsystem. Es speichert Änderungen an Dateien (hier meist Quellcode) als Versionen, bei denen die Abfolge nachvollzogen werden kann. Weil das System verteilt ist, besitzt jede beteiligte Person eine vollständige Kopie des Projekts. Arbeiten ist dadurch auch offline möglich.
 
-# Gründe für den Einsatz von Git
+### Gründe für den Einsatz von Git
 
 1. **Nachvollziehbarkeit:** Jede Änderung wird genau dokumentiert. Frühere Stände lassen sich jederzeit einsehen oder wiederherstellen.
 2. **Sicheres Experimentieren:** Mit *Branches* lassen sich neue Funktionen oder Ideen unabhängig voneinander entwickeln, ohne den stabilen Hauptstand zu gefährden.
