@@ -17,7 +17,15 @@ Pull Requests erstellt.
 
 ## 1. Was ist Git und warum sollte man es verwenden?
 
-(Jana ergänzen per commit)
+Git ist ein verteiltes Versionskontrollsystem. Es speichert Änderungen an Dateien (hier meist Quellcode) als Versionen, bei denen die Abfolge nachvollzogen werden kann. Weil das System verteilt ist, besitzt jede beteiligte Person eine vollständige Kopie des Projekts. Arbeiten ist dadurch auch offline möglich.
+
+# Gründe für den Einsatz von Git
+
+1. **Nachvollziehbarkeit:** Jede Änderung wird genau dokumentiert. Frühere Stände lassen sich jederzeit einsehen oder wiederherstellen.
+2. **Sicheres Experimentieren:** Mit *Branches* lassen sich neue Funktionen oder Ideen unabhängig voneinander entwickeln, ohne den stabilen Hauptstand zu gefährden.
+3. **Zusammenarbeit:** Mehrere Personen können parallel am selben Projekt arbeiten. Git führt ihre Änderungen zusammen (Merge) und macht Konflikte sichtbar.
+4. **Datensicherheit:** Durch die verteilte Struktur und die Synchronisation mit Repositories (hier GitHub) gehen Arbeitsstände kaum verloren.
+5. **Etablierter Standard:** Git ist das am weitesten verbreitete Versionskontrollsystem. Viele Werkzeuge und Arbeitsabläufe, etwa Code-Reviews oder automatisierte Tests (CI/CD), bauen darauf auf.
 
 ---
 
