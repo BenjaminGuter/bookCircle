@@ -239,3 +239,54 @@ Wenn man mit Git arbeitet gibt es viele nützliche Tools. Diese können in zwei 
 | Ben          | Kapitel 2 / 3 / 4 |
 | Maxi         | Kapitel 5         |
 | Jana         | Kapitel 1         |
+
+---
+
+# CI/CD in BookCircle
+
+## Grundbegriffe
+- **Continuous Integration (CI):** Jede Änderung wird automatisch gebaut und getestet.
+- **Continuous Delivery:** Jede grüne Änderung ist jederzeit auslieferbar, das Release erfolgt manuell.
+- **Continuous Deployment:** Jede grüne Änderung wird automatisch ausgeliefert.
+
+Aktuell setzen wir CI um. Ein automatisches Deployment gibt es noch nicht.
+
+## Entscheidung: GitHub Actions
+Wir nutzen **GitHub Actions** als CI-Plattform.
+
+**Begründung:**
+- Das Repository liegt bereits auf GitHub, es ist keine zusätzliche Plattform oder Anmeldung nötig.
+- Für öffentliche Repositories ist es kostenlos.
+- Pull Requests und Branch-Schutz sind direkt integriert, Pipeline-Ergebnisse erscheinen im PR.
+- Die Konfiguration liegt als YAML im Repo und wird damit versioniert und im PR nachvollziehbar.
+
+**Verworfene Alternativen:** GitLab CI (würde einen Plattformwechsel erfordern), Jenkins (benötigt einen eigenen Server, für den Projektumfang zu aufwendig), Travis CI (wird kaum noch genutzt).
+
+## Aufbau der Pipeline
+Datei: `.github/workflows/ci.yml`
+
+- **Trigger:** Push auf `main` und jeder Pull Request.
+- **Job `backend`:** Python 3.14 einrichten, Abhängigkeiten installieren, Build-Check (App importierbar), Tests mit `pytest` ausführen.
+- Die Python-Version in der Pipeline entspricht der lokal genutzten, damit CI und Entwicklung dasselbe testen.
+
+## Tests (`backend/tests/test_main.py`)
+| Test | Art | Prüft |
+|---|---|---|
+| `test_health_returns_ok` | Integrationstest | `GET /health` liefert 200 und `{"status": "ok"}` |
+| `test_unknown_route_returns_404` | Integrationstest | unbekannte Route liefert 404 |
+| `test_spoiler_visibility` | Unit-Test | Spoiler-Sichtbarkeit nach Lesefortschritt |
+
+## Branching und Pull Requests
+`main` ist geschützt: Änderungen kommen nur per Pull Request, und ein PR kann erst gemergt werden, wenn der Check `backend` erfolgreich war. Damit wird jede Änderung vor dem Merge automatisch validiert.
+
+## Deployment-Überlegungen (nicht umgesetzt)
+
+**Wie ein Deployment aussehen könnte:** Nach dem Merge in `main` könnte die Pipeline ein Docker-Image bauen und es automatisch auf einer Hosting-Plattform ausrollen.
+
+**Wo und mit welcher Plattform das möglich wäre:**
+
+| Option | Vorteil | Nachteil |
+|---|---|---|
+| Managed Hosting (z. B. Render, Railway) | wenig Aufwand, Deploy direkt aus GitHub möglich | Kostenlimits, Kaltstarts im Gratis-Tarif |
+| Eigener Server (VPS mit Docker) | volle Kontrolle | Wartung und Sicherheit müssten selbst übernommen werden |
+| Statisches Hosting fürs Frontend (z. B. Netlify) | kostenlos, einfach | nur für das Frontend geeignet |
