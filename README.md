@@ -22,7 +22,7 @@ Git ist ein verteiltes Versionskontrollsystem. Es speichert Änderungen an Datei
 ### Gründe für den Einsatz von Git
 
 1. **Nachvollziehbarkeit:** Jede Änderung wird genau dokumentiert. Frühere Stände lassen sich jederzeit einsehen oder wiederherstellen.
-2. **Sicheres Experimentieren:** Mit *Branches* lassen sich neue Funktionen oder Ideen unabhängig voneinander entwickeln, ohne den stabilen Hauptstand zu gefährden.
+2. **Sicheres Experimentieren:** Mit _Branches_ lassen sich neue Funktionen oder Ideen unabhängig voneinander entwickeln, ohne den stabilen Hauptstand zu gefährden.
 3. **Zusammenarbeit:** Mehrere Personen können parallel am selben Projekt arbeiten. Git führt ihre Änderungen zusammen (Merge) und macht Konflikte sichtbar.
 4. **Datensicherheit:** Durch die verteilte Struktur und die Synchronisation mit Repositories (hier GitHub) gehen Arbeitsstände kaum verloren.
 5. **Etablierter Standard:** Git ist das am weitesten verbreitete Versionskontrollsystem. Viele Werkzeuge und Arbeitsabläufe, etwa Code-Reviews oder automatisierte Tests (CI/CD), bauen darauf auf.
@@ -245,6 +245,7 @@ Wenn man mit Git arbeitet gibt es viele nützliche Tools. Diese können in zwei 
 # CI/CD in BookCircle
 
 ## Grundbegriffe
+
 - **Continuous Integration (CI):** Jede Änderung wird automatisch gebaut und getestet.
 - **Continuous Delivery:** Jede grüne Änderung ist jederzeit auslieferbar, das Release erfolgt manuell.
 - **Continuous Deployment:** Jede grüne Änderung wird automatisch ausgeliefert.
@@ -252,9 +253,11 @@ Wenn man mit Git arbeitet gibt es viele nützliche Tools. Diese können in zwei 
 Aktuell setzen wir CI um. Ein automatisches Deployment gibt es noch nicht.
 
 ## Entscheidung: GitHub Actions
+
 Wir nutzen **GitHub Actions** als CI-Plattform.
 
 **Begründung:**
+
 - Das Repository liegt bereits auf GitHub, es ist keine zusätzliche Plattform oder Anmeldung nötig.
 - Für öffentliche Repositories ist es kostenlos.
 - Pull Requests und Branch-Schutz sind direkt integriert, Pipeline-Ergebnisse erscheinen im PR.
@@ -263,6 +266,7 @@ Wir nutzen **GitHub Actions** als CI-Plattform.
 **Verworfene Alternativen:** GitLab CI (würde einen Plattformwechsel erfordern), Jenkins (benötigt einen eigenen Server, für den Projektumfang zu aufwendig), Travis CI (wird kaum noch genutzt).
 
 ## Aufbau der Pipeline
+
 Datei: `.github/workflows/ci.yml`
 
 - **Trigger:** Push auf `main` und jeder Pull Request.
@@ -270,13 +274,15 @@ Datei: `.github/workflows/ci.yml`
 - Die Python-Version in der Pipeline entspricht der lokal genutzten, damit CI und Entwicklung dasselbe testen.
 
 ## Tests (`backend/tests/test_main.py`)
-| Test | Art | Prüft |
-|---|---|---|
-| `test_health_returns_ok` | Integrationstest | `GET /health` liefert 200 und `{"status": "ok"}` |
-| `test_unknown_route_returns_404` | Integrationstest | unbekannte Route liefert 404 |
-| `test_spoiler_visibility` | Unit-Test | Spoiler-Sichtbarkeit nach Lesefortschritt |
+
+| Test                             | Art              | Prüft                                            |
+| -------------------------------- | ---------------- | ------------------------------------------------ |
+| `test_health_returns_ok`         | Integrationstest | `GET /health` liefert 200 und `{"status": "ok"}` |
+| `test_unknown_route_returns_404` | Integrationstest | unbekannte Route liefert 404                     |
+| `test_spoiler_visibility`        | Unit-Test        | Spoiler-Sichtbarkeit nach Lesefortschritt        |
 
 ## Branching und Pull Requests
+
 `main` ist geschützt: Änderungen kommen nur per Pull Request, und ein PR kann erst gemergt werden, wenn der Check `backend` erfolgreich war. Damit wird jede Änderung vor dem Merge automatisch validiert.
 
 ## Deployment-Überlegungen (nicht umgesetzt)
@@ -285,8 +291,8 @@ Datei: `.github/workflows/ci.yml`
 
 **Wo und mit welcher Plattform das möglich wäre:**
 
-| Option | Vorteil | Nachteil |
-|---|---|---|
-| Managed Hosting (z. B. Render, Railway) | wenig Aufwand, Deploy direkt aus GitHub möglich | Kostenlimits, Kaltstarts im Gratis-Tarif |
-| Eigener Server (VPS mit Docker) | volle Kontrolle | Wartung und Sicherheit müssten selbst übernommen werden |
-| Statisches Hosting fürs Frontend (z. B. Netlify) | kostenlos, einfach | nur für das Frontend geeignet |
+| Option                                           | Vorteil                                         | Nachteil                                                |
+| ------------------------------------------------ | ----------------------------------------------- | ------------------------------------------------------- |
+| Managed Hosting (z. B. Render, Railway)          | wenig Aufwand, Deploy direkt aus GitHub möglich | Kostenlimits, Kaltstarts im Gratis-Tarif                |
+| Eigener Server (VPS mit Docker)                  | volle Kontrolle                                 | Wartung und Sicherheit müssten selbst übernommen werden |
+| Statisches Hosting fürs Frontend (z. B. Netlify) | kostenlos, einfach                              | nur für das Frontend geeignet                           |
