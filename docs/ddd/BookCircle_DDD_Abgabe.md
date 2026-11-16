@@ -186,10 +186,14 @@ Discussion hält ein eigenes **Read Model** `MemberProgress(circle_id, user_id, 
 
 **ReadingProgress** (Aggregate Root)
 
-- Attribute Reading Progress: `UserID`, `BookID`, `ChapterNumber`, `totalChapters`
-- Methoden: `advance_to(page)`, `correct_to(page)`, `percentage()`
-- Invarianten: percentage, wenn ein Buch weitergelesen wurde und mit advance_to() oder correct_to() angepasst wurde.
-- Beziehungen: ReadingProgress hat eine 1:1 Beziehung zu einem Buch und einer User:in
+- Attribute ReadingProgress: ReadingProgressID (oder zusammengesetzter Key aus UserID + BookID), UserID,BookID, currentPage, totalPages
+- Methoden: advanceTo(page), correctTo(page), percentage()
+- Invarianten:
+- - totalPages > 0
+- - 0 <= currentPage <= totalPages
+- - Bei advanceTo(newPage) muss gelten: newPage >= currentPage (Fortschritt geht nur vorwärts)
+- - Bei correctTo(newPage) ist ein Zurücksetzen auf einen kleineren Wert erlaubt (0 <= newPage <= totalPages)
+- Beziehungen: ReadingProgress referenziert über Value Objects (IDs) jeweils genau eine User:in und ein Buch (n:1 aus Sicht von User und Book, bildet zusammen eine n:m-Beziehung zwischen User und Book ab)
 
 ### 4.7 Begründung der Aggregate-Grenzen
 
