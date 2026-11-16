@@ -2,375 +2,251 @@ from fastapi.testclient import TestClient
 
 import pytest
 from uuid import uuid4
-from app.main import app
-from app.spoiler import is_visible
 
-client = TestClient(app)
-
-
-
-
-# ==========================================
-# 1. IDENTITY – USER
-# ==========================================
-
-def test_register_user_with_invalid_email():
-    with pytest.raises(ValueError):
-        User.register(
-            email="invalid-email",
-            display_name="Max",
-            password="SecurePassword123"
-        )
+# to-do : korrekte importpfade anpassen, wenn die Struktur geändert wird
+from domain.exceptions import DomainError, ValidationError
+from domain.identity import Email
+from domain.catalog import ISBN
+from domain.reading_circle import (
+    ReadingCircle,
+    ReadingPlan,
+    ReadingProgressUpdated,
+    BookFinished,
+)
+from domain.discussion import DiscussionThread
+from domain.reading_progress import ReadingProgress
 
 
-def test_register_user_with_empty_display_name():
-    with pytest.raises(ValueError):
-        User.register(
-            email="max@example.com",
-            display_name="",
-            password="SecurePassword123"
-        )
+# =====================================================================
+# Hilfsfunktionen / Fixtures
+# =====================================================================
 
-
-# ==========================================
-# 2. CATALOG – BOOK / CHAPTER
-# ==========================================
-
-def test_book_chapters_are_numbered_consecutively():
-    book = Book(
-        id=uuid4(),
-        title="Clean Architecture",
-        isbn=None,
-        author_ids=[uuid4()],
-        chapters=[
-            Chapter(number=1, title="Introduction"),
-            Chapter(number=2, title="Architecture"),
-        ]
-    )
-
-    book.add_chapter("Design Principles")
-
-    assert len(book.chapters) == 3
-    assert book.chapters[2].number == 3
-
-
-def test_book_rejects_chapter_number_gap():
-    with pytest.raises(ValueError):
-        Book(
-            id=uuid4(),
-            title="Clean Architecture",
-            isbn=None,
-            author_ids=[uuid4()],
-            chapters=[
-                Chapter(number=1, title="Introduction"),
-                Chapter(number=3, title="Architecture"),
-            ]
-        )
-
-
-def test_book_requires_at_least_one_author():
-    with pytest.raises(ValueError):
-        Book(
-            id=uuid4(),
-            title="Clean Architecture",
-            isbn=None,
-            author_ids=[],
-            chapters=[
-                Chapter(number=1, title="Introduction")
-            ]
-        )
-
-
-# ==========================================
-# 3. LIBRARY – SHELF
-# ==========================================
-
-def test_book_cannot_be_added_twice_to_shelf():
-    book_id = uuid4()
-
-    shelf = Shelf(
-        id=uuid4(),
-        owner_id=uuid4(),
-        name="Meine Bücher",
-        entries=[]
-    )
-
-    shelf.add_book(book_id)
-
-    with pytest.raises(ValueError):
-        shelf.add_book(book_id)
-
-    assert len(shelf.entries) == 1
-
-
-def test_book_can_be_removed_from_shelf():
-    book_id = uuid4()
-
-    shelf = Shelf(
-        id=uuid4(),
-        owner_id=uuid4(),
-        name="Meine Bücher",
-        entries=[]
-    )
-
-    shelf.add_book(book_id)
-    shelf.remove_book(book_id)
-
-    assert len(shelf.entries) == 0
-
-
-def test_reading_status_can_be_changed():
-    book_id = uuid4()
-
-    shelf = Shelf(
-        id=uuid4(),
-        owner_id=uuid4(),
-        name="Meine Bücher",
-        entries=[]
-    )
-
-    shelf.add_book(book_id)
-    shelf.change_status(book_id, ReadingStatus.READING)
-
-    assert shelf.entries[0].status == ReadingStatus.READING
-
-
-# ==========================================
-# 4. READING CIRCLES
-# ==========================================
-
-def test_reading_progress_cannot_decrease():
-    user_id = uuid4()
-
-    circle = ReadingCircle.found(
-        name="Book Club",
-        owner_id=user_id,
-        book_id=uuid4(),
-        total_chapters=20
-    )
-
-    circle.update_progress(user_id, 10)
-
-    with pytest.raises(ValueError):
-        circle.update_progress(user_id, 8)
-
-    assert circle.memberships[0].progress == 10
-
-
-def test_reading_progress_cannot_exceed_total_chapters():
-    user_id = uuid4()
-
-    circle = ReadingCircle.found(
-        name="Book Club",
-        owner_id=user_id,
-        book_id=uuid4(),
-        total_chapters=20
-    )
-
-    with pytest.raises(ValueError):
-        circle.update_progress(user_id, 21)
-
-
-def test_reading_progress_allows_zero():
-    user_id = uuid4()
-
-    circle = ReadingCircle.found(
-        name="Book Club",
-        owner_id=user_id,
-        book_id=uuid4(),
-        total_chapters=20
-    )
-
-    circle.update_progress(user_id, 0)
-
-    assert circle.memberships[0].progress == 0
-
-
-def test_user_cannot_join_circle_twice():
+def create_sample_circle(total_pages: int = 10):
     owner_id = uuid4()
     member_id = uuid4()
-
     circle = ReadingCircle.found(
-        name="Book Club",
+        name="Sci-Fi Club",
         owner_id=owner_id,
         book_id=uuid4(),
-        total_chapters=20
+        total_pages=total_pages,
+        reading_plan=ReadingPlan(start="2026-12-01", pages_per_week=2),
     )
-
     circle.join(member_id)
-
-    with pytest.raises(ValueError):
-        circle.join(member_id)
+    return circle, owner_id, member_id
 
 
-def test_circle_owner_cannot_leave_while_members_exist():
-    owner_id = uuid4()
-    member_id = uuid4()
+# =====================================================================
+# 1. ReadingCircle: Fortschritt & Domain Events (update_progress)
+# =====================================================================
 
-    circle = ReadingCircle.found(
-        name="Book Club",
-        owner_id=owner_id,
-        book_id=uuid4(),
-        total_chapters=20
-    )
+class TestReadingCircleProgress:
+    # HAPPY PATH: Normaler Fortschritt löst Event aus
+    def test_update_progress_happy_path(self):
+        circle, _, member_id = create_sample_circle(total_pages=10)
 
-    circle.join(member_id)
+        circle.update_progress(user_id=member_id, page=4)
 
-    with pytest.raises(ValueError):
-        circle.leave(owner_id)
+        membership = circle.get_membership(member_id)
+        assert membership.progress == 4
+        assert any(
+            isinstance(e, ReadingProgressUpdated) and e.page == 4
+            for e in circle.domain_events
+        )
+        assert not any(
+            isinstance(e, BookFinished) for e in circle.domain_events
+        )
 
-    assert any(
-        membership.user_id == owner_id
-        for membership in circle.memberships
-    )
+    # EDGE CASE: Erreichen des exakt letzten Seites triggert BookFinished
+    def test_update_progress_exact_last_page_triggers_finished(self):
+        circle, _, member_id = create_sample_circle(total_pages=10)
 
+        circle.update_progress(user_id=member_id, page=10)
 
-def test_book_finished_event_emitted_only_once():
-    user_id = uuid4()
+        assert circle.get_membership(member_id).progress == 10
+        assert any(
+            isinstance(e, BookFinished) and e.user_id == member_id
+            for e in circle.domain_events
+        )
 
-    circle = ReadingCircle.found(
-        name="Book Club",
-        owner_id=user_id,
-        book_id=uuid4(),
-        total_chapters=20
-    )
+    # NEGATIVE TEST: Fortschritt darf nicht unter Null, oder über absolute Seitenzahl hinausgehen
+    def test_update_progress_invalid_page_raises_error(self):
+        circle, _, member_id = create_sample_circle(total_pages=10)
 
-    circle.update_progress(user_id, 20)
-    circle.update_progress(user_id, 20)
+        with pytest.raises(DomainError):
+            circle.update_progress(user_id=member_id, page=-1)
 
-    events = [
-        event for event in circle.events
-        if isinstance(event, BookFinished)
-    ]
-
-    assert len(events) == 1
-
-
-# ==========================================
-# 5. DISCUSSION – DISCUSSION THREAD
-# ==========================================
-
-def test_user_cannot_see_posts_from_unread_chapters():
-    thread = DiscussionThread.open(
-        circle_id=uuid4(),
-        chapter=10,
-        title="Diskussion über Kapitel 10"
-    )
-
-    thread.add_post(
-        author_id=uuid4(),
-        text="Interessante Wendung!",
-        author_progress=12
-    )
-
-    visible_posts = thread.visible_posts(
-        viewer_progress=8
-    )
-
-    assert len(visible_posts) == 0
+        with pytest.raises(DomainError):
+            circle.update_progress(user_id=member_id, page=11)
 
 
-def test_user_can_see_posts_when_progress_is_sufficient():
-    thread = DiscussionThread.open(
-        circle_id=uuid4(),
-        chapter=10,
-        title="Diskussion über Kapitel 10"
-    )
+# =====================================================================
+# 2. ReadingCircle: Gründer-Austrittsregel (leave)
+# =====================================================================
 
-    thread.add_post(
-        author_id=uuid4(),
-        text="Interessante Wendung!",
-        author_progress=12
-    )
+class TestReadingCircleLeave:
+    # HAPPY PATH: Reguläres Mitglied verlässt den Kreis jederzeit
+    def test_regular_member_can_leave_anytime(self):
+        circle, owner_id, member_id = create_sample_circle()
 
-    visible_posts = thread.visible_posts(
-        viewer_progress=10
-    )
+        circle.leave(member_id)
 
-    assert len(visible_posts) == 1
+        assert len(circle.memberships) == 1
+        assert circle.memberships[0].user_id == owner_id
+
+    # EDGE CASE: Gründer tritt aus, nachdem alle anderen gegangen sind
+    def test_owner_can_leave_when_alone(self):
+        circle, owner_id, member_id = create_sample_circle()
+        circle.leave(member_id)
+
+        circle.leave(owner_id)  # Jetzt ist der Gründer allein -> erlaubt
+
+        assert len(circle.memberships) == 0
+
+    # NEGATIVE TEST: Gründer versucht auszutreten, während noch Mitglieder da sind
+    def test_owner_cannot_leave_while_other_members_exist(self):
+        circle, owner_id, _ = create_sample_circle()
+
+        with pytest.raises(
+            DomainError, match="Gründer kann erst austreten, wenn er allein ist"
+        ):
+            circle.leave(owner_id)
 
 
-def test_user_cannot_post_if_progress_is_insufficient():
-    thread = DiscussionThread.open(
-        circle_id=uuid4(),
-        chapter=10,
-        title="Diskussion über Kapitel 10"
-    )
+# =====================================================================
+# 3. DiscussionThread: Spoiler-Schutz beim Lesen & Schreiben
+# =====================================================================
 
-    with pytest.raises(ValueError):
+class TestDiscussionSpoilerProtection:
+    # HAPPY PATH: Nutzer mit höherem Fortschritt darf posten und lesen
+    def test_add_and_read_post_with_sufficient_progress(self):
+        thread = DiscussionThread.open(
+            circle_id=uuid4(), page=5, title="Seite 5 Twist!"
+        )
+        author_id = uuid4()
+
         thread.add_post(
-            author_id=uuid4(),
-            text="Ich kenne den Inhalt noch nicht.",
-            author_progress=8
+            author_id=author_id, text="Was für ein Ende!", author_progress=7
+        )
+        visible = thread.visible_posts(viewer_progress=6)
+
+        assert len(visible) == 1
+        assert visible[0].text == "Was für ein Ende!"
+
+    # EDGE CASE: Exakter Gleichstand (progress == chapter) muss erlaubt sein
+    def test_boundary_exact_page_match_allows_reading_and_writing(self):
+        thread = DiscussionThread.open(
+            circle_id=uuid4(), page=5, title="Seite 5 Twist!"
         )
 
-    assert len(thread.posts) == 0
-
-
-def test_user_cannot_delete_post_of_another_user():
-    author_id = uuid4()
-    attacker_id = uuid4()
-
-    thread = DiscussionThread.open(
-        circle_id=uuid4(),
-        chapter=5,
-        title="Diskussion"
-    )
-
-    thread.add_post(
-        author_id=author_id,
-        text="Mein Beitrag",
-        author_progress=5
-    )
-
-    post_id = thread.posts[0].id
-
-    with pytest.raises(PermissionError):
-        thread.delete_post(
-            post_id=post_id,
-            by_user_id=attacker_id
-        )
-
-    assert len(thread.posts) == 1
-
-
-def test_user_can_delete_own_post():
-    author_id = uuid4()
-
-    thread = DiscussionThread.open(
-        circle_id=uuid4(),
-        chapter=5,
-        title="Diskussion"
-    )
-
-    thread.add_post(
-        author_id=author_id,
-        text="Mein Beitrag",
-        author_progress=5
-    )
-
-    post_id = thread.posts[0].id
-
-    thread.delete_post(
-        post_id=post_id,
-        by_user_id=author_id
-    )
-
-    assert len(thread.posts) == 0
-
-
-def test_empty_post_is_rejected():
-    thread = DiscussionThread.open(
-        circle_id=uuid4(),
-        chapter=5,
-        title="Diskussion"
-    )
-
-    with pytest.raises(ValueError):
         thread.add_post(
-            author_id=uuid4(),
-            text="",
-            author_progress=5
+            author_id=uuid4(), text="Gerade beendet!", author_progress=5
+        )
+        visible = thread.visible_posts(viewer_progress=5)
+
+        assert len(visible) == 1
+
+    # NEGATIVE TEST: Geringerer Fortschritt blockiert Schreiben & blendet Posts aus
+    def test_insufficient_progress_blocks_posting_and_hides_posts(self):
+        thread = DiscussionThread.open(
+            circle_id=uuid4(), page=5, title="Seite 5 Twist!"
+        )
+        thread.add_post(author_id=uuid4(), text="Spoiler!", author_progress=5)
+
+        # Lesen liefert leere Liste (kein Spoiler)
+        assert thread.visible_posts(viewer_progress=4) == []
+
+        # Schreiben wirft DomainError
+        with pytest.raises(
+            DomainError, match="Fortschritt reicht für dieses Seite nicht aus"
+        ):
+            thread.add_post(
+                author_id=uuid4(), text="Darf ich noch nicht", author_progress=4
+            )
+
+
+# =====================================================================
+# 4. ReadingProgress: Vorwärts-Lesen vs. Korrektur (advance_to, correct_to)
+# =====================================================================
+
+class TestReadingProgress:
+    # HAPPY PATH: Fortschritt vorwärts bewegen und Prozentwert prüfen
+    def test_advance_to_increases_progress_and_calculates_percentage(self):
+        rp = ReadingProgress(
+            user_id=uuid4(), book_id=uuid4(), current_page=0, total_pages=200
         )
 
-    assert len(thread.posts) == 0
+        rp.advance_to(50)
+
+        assert rp.current_page == 50
+        assert rp.percentage() == 25.0
+
+    # EDGE CASE: Zurücksetzen auf 0 über correct_to erlaubt
+    def test_correct_to_allows_resetting_to_zero_and_max_page(self):
+        rp = ReadingProgress(
+            user_id=uuid4(), book_id=uuid4(), current_page=120, total_pages=200
+        )
+
+        rp.correct_to(0)
+        assert rp.current_page == 0
+
+        rp.correct_to(200)
+        assert rp.current_page == 200
+        assert rp.percentage() == 100.0
+
+    # NEGATIVE TEST: advance_to darf nicht rückwärts gehen und total_pages nicht überschreiten
+    def test_advance_to_rejects_backward_or_overflow_pages(self):
+        rp = ReadingProgress(
+            user_id=uuid4(), book_id=uuid4(), current_page=100, total_pages=200
+        )
+
+        with pytest.raises(DomainError):
+            rp.advance_to(99)   # Rückwärts verboten
+
+        with pytest.raises(DomainError):
+            rp.advance_to(201)  # Über total_pages verboten
+
+
+# =====================================================================
+# 5. Value Objects: Regex-Validierung (Email & ISBN)
+# =====================================================================
+
+class TestValueObjectValidation:
+    @pytest.mark.parametrize(
+        "valid_email",
+        [
+            "anna@example.com",                # Happy Path
+            "max.mustermann+books@sub.uni.de", # Edge Case: Subdomain & Plus-Tag
+        ],
+    )
+    def test_email_valid(self, valid_email):
+        assert Email(valid_email).value == valid_email
+
+    @pytest.mark.parametrize(
+        "invalid_email",
+        [
+            "",                  # Leer
+            "anna@localhost",    # Fehlende Top-Level-Domain
+            "anna @example.com", # Leerzeichen
+            "@example.com",      # Fehlender Local-Part
+        ],
+    )
+    def test_email_invalid(self, invalid_email):
+        with pytest.raises(ValidationError):
+            Email(invalid_email)
+
+    @pytest.mark.parametrize(
+        "isbn_input,is_valid",
+        [
+            ("978-3-16-148410-0", True),  # Happy Path: ISBN-13 mit Bindestrichen
+            ("0-306-40615-2", True),      # Happy Path: ISBN-10
+            ("043942089X", True),         # Edge Case: ISBN-10 mit 'X' als Prüfziffer
+            ("978316148410", False),      # Negative: Nur 12 Stellen
+            ("978-3-16-148410-X", False), # Negative: 'X' nur bei ISBN-10 erlaubt
+        ],
+    )
+    def test_isbn_validation(self, isbn_input, is_valid):
+        if is_valid:
+            assert ISBN(isbn_input).value == isbn_input
+        else:
+            with pytest.raises(ValidationError):
+                ISBN(isbn_input)
