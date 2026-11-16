@@ -18,6 +18,6 @@ def test_unknown_route_returns_404():
 
 
 def test_spoiler_visibility():
-    assert is_visible(post_chapter=3, reader_chapter=5) is True
-    assert is_visible(post_chapter=3, reader_chapter=3) is True
-    assert is_visible(post_chapter=7, reader_chapter=2) is False
+    assert is_visible(post_chapter=3, reader_page=5) is True
+    assert is_visible(post_chapter=3, reader_page=3) is True
+    assert is_visible(post_chapter=7, reader_page=2) is False
