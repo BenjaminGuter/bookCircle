@@ -1,7 +1,5 @@
-from fastapi.testclient import TestClient
-
 import pytest
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 # to-do : korrekte importpfade anpassen, wenn die Struktur geändert wird
 from domain.exceptions import DomainError, ValidationError
@@ -18,20 +16,22 @@ from domain.reading_progress import ReadingProgress
 
 
 # =====================================================================
-# Hilfsfunktionen / Fixtures
+# Pytest Fixtures (beseitigt Code-Duplikation aus create_sample_circle)
 # =====================================================================
 
-def create_sample_circle(total_pages: int = 10):
+@pytest.fixture
+def sample_circle() -> tuple[ReadingCircle, UUID, UUID]:
     owner_id = uuid4()
     member_id = uuid4()
     circle = ReadingCircle.found(
         name="Sci-Fi Club",
         owner_id=owner_id,
         book_id=uuid4(),
-        total_pages=total_pages,
+        total_pages=10,
         reading_plan=ReadingPlan(start="2026-12-01", pages_per_week=2),
     )
     circle.join(member_id)
+    circle.domain_events.clear()
     return circle, owner_id, member_id
 
 
@@ -41,8 +41,8 @@ def create_sample_circle(total_pages: int = 10):
 
 class TestReadingCircleProgress:
     # HAPPY PATH: Normaler Fortschritt löst Event aus
-    def test_update_progress_happy_path(self):
-        circle, _, member_id = create_sample_circle(total_pages=10)
+    def test_update_progress_happy_path(self, sample_circle):
+        circle, _, member_id = sample_circle
 
         circle.update_progress(user_id=member_id, page=4)
 
@@ -56,9 +56,9 @@ class TestReadingCircleProgress:
             isinstance(e, BookFinished) for e in circle.domain_events
         )
 
-    # EDGE CASE: Erreichen des exakt letzten Seites triggert BookFinished
-    def test_update_progress_exact_last_page_triggers_finished(self):
-        circle, _, member_id = create_sample_circle(total_pages=10)
+    # EDGE CASE: Erreichen der exakt letzten Seite triggert BookFinished
+    def test_update_progress_exact_last_page_triggers_finished(self, sample_circle):
+        circle, _, member_id = sample_circle
 
         circle.update_progress(user_id=member_id, page=10)
 
@@ -68,9 +68,19 @@ class TestReadingCircleProgress:
             for e in circle.domain_events
         )
 
-    # NEGATIVE TEST: Fortschritt darf nicht unter Null, oder über absolute Seitenzahl hinausgehen
-    def test_update_progress_invalid_page_raises_error(self):
-        circle, _, member_id = create_sample_circle(total_pages=10)
+    # EDGE CASE (NEU): Gleiche Seitenzahl erneut melden (Idempotenz)
+    def test_update_progress_same_page_is_allowed(self, sample_circle):
+        circle, _, member_id = sample_circle
+        circle.update_progress(user_id=member_id, page=5)
+        circle.domain_events.clear()
+
+        circle.update_progress(user_id=member_id, page=5)
+
+        assert circle.get_membership(member_id).progress == 5
+
+    # NEGATIVE TEST: Fortschritt darf nicht unter Null, über total_pages oder rückwärts gehen
+    def test_update_progress_invalid_page_raises_error(self, sample_circle):
+        circle, _, member_id = sample_circle
 
         with pytest.raises(DomainError):
             circle.update_progress(user_id=member_id, page=-1)
@@ -78,15 +88,27 @@ class TestReadingCircleProgress:
         with pytest.raises(DomainError):
             circle.update_progress(user_id=member_id, page=11)
 
+        # Neuer Negative-Case: Monotonie (Fortschritt darf nicht sinken)
+        circle.update_progress(user_id=member_id, page=6)
+        with pytest.raises(DomainError):
+            circle.update_progress(user_id=member_id, page=5)
+
+    # NEGATIVE TEST (NEU): Nicht-Mitglied darf keinen Fortschritt melden
+    def test_update_progress_unknown_member_raises_error(self, sample_circle):
+        circle, _, _ = sample_circle
+
+        with pytest.raises(DomainError):
+            circle.update_progress(user_id=uuid4(), page=3)
+
 
 # =====================================================================
-# 2. ReadingCircle: Gründer-Austrittsregel (leave)
+# 2. ReadingCircle: Mitgliedschaft & Gründer-Austrittsregel (join / leave)
 # =====================================================================
 
 class TestReadingCircleLeave:
     # HAPPY PATH: Reguläres Mitglied verlässt den Kreis jederzeit
-    def test_regular_member_can_leave_anytime(self):
-        circle, owner_id, member_id = create_sample_circle()
+    def test_regular_member_can_leave_anytime(self, sample_circle):
+        circle, owner_id, member_id = sample_circle
 
         circle.leave(member_id)
 
@@ -94,8 +116,8 @@ class TestReadingCircleLeave:
         assert circle.memberships[0].user_id == owner_id
 
     # EDGE CASE: Gründer tritt aus, nachdem alle anderen gegangen sind
-    def test_owner_can_leave_when_alone(self):
-        circle, owner_id, member_id = create_sample_circle()
+    def test_owner_can_leave_when_alone(self, sample_circle):
+        circle, owner_id, member_id = sample_circle
         circle.leave(member_id)
 
         circle.leave(owner_id)  # Jetzt ist der Gründer allein -> erlaubt
@@ -103,17 +125,27 @@ class TestReadingCircleLeave:
         assert len(circle.memberships) == 0
 
     # NEGATIVE TEST: Gründer versucht auszutreten, während noch Mitglieder da sind
-    def test_owner_cannot_leave_while_other_members_exist(self):
-        circle, owner_id, _ = create_sample_circle()
+    def test_owner_cannot_leave_while_other_members_exist(self, sample_circle):
+        circle, owner_id, _ = sample_circle
 
         with pytest.raises(
             DomainError, match="Gründer kann erst austreten, wenn er allein ist"
         ):
             circle.leave(owner_id)
 
+    # NEGATIVE TEST (NEU): Doppelter Beitritt und Austritt eines Nicht-Mitglieds
+    def test_duplicate_join_and_non_member_leave_rejected(self, sample_circle):
+        circle, _, member_id = sample_circle
+
+        with pytest.raises(DomainError):
+            circle.join(member_id)
+
+        with pytest.raises(DomainError):
+            circle.leave(uuid4())
+
 
 # =====================================================================
-# 3. DiscussionThread: Spoiler-Schutz beim Lesen & Schreiben
+# 3. DiscussionThread: Spoiler-Schutz beim Lesen, Schreiben & Löschen
 # =====================================================================
 
 class TestDiscussionSpoilerProtection:
@@ -132,7 +164,7 @@ class TestDiscussionSpoilerProtection:
         assert len(visible) == 1
         assert visible[0].text == "Was für ein Ende!"
 
-    # EDGE CASE: Exakter Gleichstand (progress == chapter) muss erlaubt sein
+    # EDGE CASE: Exakter Gleichstand (progress == page) muss erlaubt sein
     def test_boundary_exact_page_match_allows_reading_and_writing(self):
         thread = DiscussionThread.open(
             circle_id=uuid4(), page=5, title="Seite 5 Twist!"
@@ -157,11 +189,27 @@ class TestDiscussionSpoilerProtection:
 
         # Schreiben wirft DomainError
         with pytest.raises(
-            DomainError, match="Fortschritt reicht für dieses Seite nicht aus"
+            DomainError, match="Fortschritt reicht für diese Seite nicht aus"
         ):
             thread.add_post(
                 author_id=uuid4(), text="Darf ich noch nicht", author_progress=4
             )
+
+    # NEGATIVE TEST (NEU): Leerer Post (nur Whitespace) & unbefugtes Löschen
+    def test_empty_post_and_unauthorized_deletion_rejected(self):
+        thread = DiscussionThread.open(
+            circle_id=uuid4(), page=5, title="Seite 5 Twist!"
+        )
+        author_id = uuid4()
+
+        with pytest.raises((DomainError, ValidationError)):
+            thread.add_post(author_id=author_id, text="   \n  ", author_progress=5)
+
+        thread.add_post(author_id=author_id, text="Gültiger Text", author_progress=5)
+        post_id = thread.posts[0].id
+
+        with pytest.raises(DomainError):
+            thread.delete_post(post_id=post_id, by_user_id=uuid4())
 
 
 # =====================================================================
@@ -180,7 +228,7 @@ class TestReadingProgress:
         assert rp.current_page == 50
         assert rp.percentage() == 25.0
 
-    # EDGE CASE: Zurücksetzen auf 0 über correct_to erlaubt
+    # EDGE CASE: Zurücksetzen auf 0 und Maximum über correct_to erlaubt
     def test_correct_to_allows_resetting_to_zero_and_max_page(self):
         rp = ReadingProgress(
             user_id=uuid4(), book_id=uuid4(), current_page=120, total_pages=200
@@ -204,6 +252,22 @@ class TestReadingProgress:
 
         with pytest.raises(DomainError):
             rp.advance_to(201)  # Über total_pages verboten
+
+    # NEGATIVE TEST (NEU): Ungültige Initialwerte (total_pages <= 0 oder negative Seiten)
+    @pytest.mark.parametrize(
+        "current,total",
+        [
+            (0, 0),
+            (0, -5),
+            (-1, 100),
+            (101, 100),
+        ],
+    )
+    def test_invalid_initialization_raises_error(self, current, total):
+        with pytest.raises((DomainError, ValidationError)):
+            ReadingProgress(
+                user_id=uuid4(), book_id=uuid4(), current_page=current, total_pages=total
+            )
 
 
 # =====================================================================
