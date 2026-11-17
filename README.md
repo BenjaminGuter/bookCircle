@@ -1,3 +1,104 @@
+# BookCircle
+
+Plattform für Lesekreise mit kapitelbezogenen Diskussionen und Spoiler-Schutz.
+
+## Entwickeln
+
+Die Datenbank läuft in Docker, Backend und Frontend laufen lokal mit Hot Reload.
+
+**Voraussetzungen:** Docker Desktop (läuft), Git, Python 3.14, Node.js 22 oder neuer.
+
+1. Repo holen:
+   ```
+   git clone <repo-url>
+   cd bookCircle
+   ```
+2. Konfiguration anlegen: `.env.example` nach `.env` kopieren
+   (`copy .env.example .env`, macOS/Linux: `cp .env.example .env`) und ein eigenes Passwort eintragen.
+   Das Passwort muss in `POSTGRES_PASSWORD` und in `DATABASE_URL` identisch sein, nur Buchstaben und Zahlen.
+   Die `.env` wird nicht eingecheckt.
+3. Datenbank starten (im Repo-Root):
+   ```
+   docker compose up -d
+   docker compose ps
+   ```
+   `db` muss `healthy` anzeigen. Beim ersten Start werden `db/init/01_schema.sql` und `02_seed.sql`
+   automatisch ausgeführt (Tabellen und Testdaten).
+4. Backend (neues Terminal):
+   ```
+   cd backend
+   python -m venv .venv                   (nur beim ersten Mal)
+   .venv\Scripts\activate                 (macOS/Linux: source .venv/bin/activate)
+   pip install -r requirements.txt
+   uvicorn app.main:app --reload
+   ```
+   Die Datenbankverbindung liest das Backend automatisch aus der `.env`.
+   Prüfen: http://localhost:8000/health/db muss `{"db":"ok"}` liefern.
+   API-Doku zum Ausprobieren: http://localhost:8000/docs
+5. Frontend (weiteres Terminal):
+   ```
+   cd frontend
+   npm install                            (beim ersten Mal und nach Änderungen an package.json)
+   npm run dev
+   ```
+   Dann http://localhost:5173 öffnen. Oben muss "Backend verbunden" stehen.
+   Das Frontend ruft das Backend über den Proxy unter `/api` auf.
+
+Beenden: `Strg+C` in den beiden Terminals, Datenbank mit `docker compose stop`.
+
+## Ports
+
+| Dienst | Port | Adresse |
+|---|---|---|
+| Frontend (Vite) | 5173 | http://localhost:5173 |
+| Backend (FastAPI) | 8000 | http://localhost:8000/docs |
+| Datenbank (PostgreSQL) | 5432 | `localhost:5432` |
+
+## Testnutzer (nur Entwicklung, kein echtes Login)
+
+Im Frontend oben über "Dev-Nutzer" wählbar, per API über den Header `X-User-Id`:
+
+| Nutzer | ID | Rolle |
+|---|---|---|
+| Jana | `11111111-1111-1111-1111-111111111111` | Admin |
+| Ben | `22222222-2222-2222-2222-222222222222` | Leser |
+| Maxi | `33333333-3333-3333-3333-333333333333` | Leser |
+
+Nur Admins können Buchcover hinzufügen, ändern und löschen (JPEG, PNG oder WebP, maximal 2 MB).
+Die Cover-Dateien liegen lokal in `backend/data/covers` (nicht im Repo), in der Datenbank stehen nur die Metadaten.
+
+## Datenbank
+
+Die Skripte in `db/init/` (Schema und Testdaten) laufen nur, wenn das Datenbank-Volume leer ist.
+Nach einem `git pull`, der das Schema ändert, oder um die Testdaten neu zu laden:
+```
+docker compose down -v
+docker compose up -d
+```
+Achtung: Das löscht alle lokalen Datenbankdaten. Hochgeladene Cover-Dateien in `backend/data/covers`
+bleiben liegen, gehören danach aber zu keinem Buch mehr und können gelöscht werden.
+
+Direkter Zugriff:
+```
+docker compose exec db psql -U bookcircle -d bookcircle
+```
+Oder mit einem Tool wie DBeaver: Host `localhost`, Port `5432`, Datenbank und Benutzer `bookcircle`,
+Passwort aus der `.env`. Die Tabellen liegen in Schemas (`catalog.books`, `reading.progress`, ...),
+Abfragen brauchen also immer das Schema.
+
+## Häufige Probleme
+
+| Problem | Lösung |
+|---|---|
+| `error during connect ... dockerDesktopLinuxEngine` | Docker Desktop starten und warten, bis die Engine läuft |
+| `port is already allocated` (5432) | Programm auf dem Port beenden oder in der `.env` `POSTGRES_PORT` ändern, dabei auch den Port in `DATABASE_URL` anpassen |
+| Frontend zeigt "Backend nicht erreichbar" | Läuft das Backend auf Port 8000? |
+| Backend: Verbindungsfehler zur DB | Passwort in `DATABASE_URL` der `.env` prüfen, Host muss `localhost` sein; `docker compose ps` prüfen |
+| `relation "books" does not exist` | Tabellen immer mit Schema schreiben: `catalog.books` |
+| Backend startet nicht nach `git pull` | `pip install -r requirements.txt` bzw. `npm install` |
+
+---
+
 # Git-Handout
 
 Dieses Handout erklärt die Grundlagen von Git und den Umgang mit einem

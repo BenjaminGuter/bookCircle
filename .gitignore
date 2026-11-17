@@ -11,6 +11,9 @@ htmlcov/
 # Umgebungsvariablen
 .env
 
+# Lokale Daten (hochgeladene Covers)
+backend/data/
+
 # IDE / OS
 .vscode/
 .idea/
