@@ -47,8 +47,14 @@ export default function App() {
   return (
     <main>
       <header id="global-header" >
-        <h1>BookCircle</h1>
-      </header>
+        <section className="navigation-elements">
+          <h1>BookCircle</h1>
+          <p>Lesekreise</p>
+          <p>Bücher</p>
+          {user.admin && <button className="admin" onClick={() => {}}>Buch hinzufügen</button>}
+          <button onClick={() => {}}>Login</button>
+        </section>
+        </header>
 
       {loadError && <p className="error">Bücher konnten nicht geladen werden: {loadError}</p>}
       <section className="hero" style={{ background: `url(${heroImage}) center / cover`}}>

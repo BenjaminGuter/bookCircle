@@ -14,7 +14,7 @@ header h1 { margin: 0; margin-right: auto; }
 .placeholder { display: flex; align-items: center; justify-content: center; background: #e4e1d8; color: #777; }
 .card h3 { margin: .6rem 0 .2rem; font-size: 1rem; }
 .meta { margin: 0; color: #666; font-size: .85rem; }
-.admin { display: flex; gap: .4rem; margin-top: .6rem; }
+.admin { display: flex; gap: .4rem; margin-top: .6rem;}
 button { cursor: pointer; padding: .35rem .6rem; border: 1px solid #bbb; border-radius: 6px; background: #fafafa; }
 button:disabled { opacity: .5; cursor: default; }
 button.danger { color: #a22; }
@@ -40,4 +40,24 @@ button.danger { color: #a22; }
     padding: 1rem 0;
     font-size: 2rem;
     text-align: center;
+}
+section.navigation-elements button {
+    margin-top:0;
+    background-color: #15048f;
+    color: #fff;
+    font-size: 1rem;
+    padding: .5rem 1rem;
+    border: none;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,.3));
+    transition: all 0.3s ease;
+}
+section.navigation-elements button:hover {
+transform: scale(1.05);}
+section.navigation-elements {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: right;
+    gap: 3rem;
+
 }
