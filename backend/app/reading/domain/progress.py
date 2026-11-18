@@ -52,7 +52,7 @@ class ReadingProgress:
         return to_position(self.last_read_page, self.total_pages)
 
     def percentage(self) -> int:
-        return 100 * self.last_read_page / self.total_pages
+        return 100 * self.last_read_page // self.total_pages
 
     def pull_events(self) -> list[DomainEvent]:
         events, self._events = self._events, []

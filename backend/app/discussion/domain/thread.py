@@ -31,7 +31,7 @@ class DiscussionThread:
     @classmethod
     def open(cls, circle_id: UUID, book_id: UUID, position: int, title: str, author_position: int):
         if not 1 <= position <= MAX_POSITION:
-            raise DomainError("Position muss zwischen 1 und {MAX_POSITION} liegen")
+            raise DomainError(f"Position muss zwischen 1 und {MAX_POSITION} liegen")
         if not is_unlocked(position, author_position):
             raise DomainError("Thread kann nur an einer bereits gelesenen Stelle eröffnet werden")
         # Leere Titel ablehnen (FEHLERBEHEBUNG)
@@ -49,7 +49,6 @@ class DiscussionThread:
         if not text.strip():
             raise DomainError("Beitrag darf nicht leer sein")
         post = Post(uuid4(), author_id, text.strip(), datetime.now(timezone.utc))
-        post = Post(uuid4(), author_id, text, datetime.now(timezone.utc))
         self.posts.append(post)
         return post
 
