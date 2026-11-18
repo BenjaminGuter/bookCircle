@@ -27,15 +27,9 @@ CREATE TABLE catalog.authors (
     name text NOT NULL
 );
 
-CREATE TABLE catalog.books (
+CREATE TABLE catalog.books (     -- das Werk (z. B. "Der Hund von Baskerville"), unabhängig von der Ausgabe
     id    uuid PRIMARY KEY,
-    title text NOT NULL,
-    page_count int NOT NULL CHECK (page_count >= 1),   -- Seitenzahl, Grundlage für den Spoiler-Schutz
-    isbn  text UNIQUE CHECK (isbn IS NULL OR isbn ~ '^[0-9]{10}([0-9]{3})?$'),
-    -- Cover: Datei liegt im Volume (COVER_DIR), hier nur die Metadaten. Beide NULL = kein Cover.
-    cover_file         text,
-    cover_content_type text CHECK (cover_content_type IN ('image/jpeg', 'image/png', 'image/webp')),
-    CHECK ((cover_file IS NULL) = (cover_content_type IS NULL))
+    title text NOT NULL
 );
 CREATE INDEX books_title_idx ON catalog.books (lower(title));
 
@@ -46,6 +40,24 @@ CREATE TABLE catalog.book_authors (
     author_id uuid NOT NULL REFERENCES catalog.authors(id),
     PRIMARY KEY (book_id, author_id)
 );
+
+-- Ausgabe eines Werks (Taschenbuch, Hardcover, E-Book ...). Seitenzahl und Cover gehören zur Ausgabe.
+CREATE TYPE catalog.edition_format AS ENUM ('paperback', 'hardcover', 'ebook');
+
+CREATE TABLE catalog.editions (
+    id             uuid PRIMARY KEY,
+    book_id        uuid NOT NULL REFERENCES catalog.books(id) ON DELETE CASCADE,
+    isbn           text UNIQUE CHECK (isbn IS NULL OR isbn ~ '^[0-9]{10}([0-9]{3})?$'),
+    page_count     int  NOT NULL CHECK (page_count >= 1),
+    format         catalog.edition_format NOT NULL,
+    publisher      text,
+    published_year int  CHECK (published_year BETWEEN 1000 AND 2100),
+    -- Cover: Datei liegt im Dateisystem (COVER_DIR), hier nur die Metadaten. Beide NULL = kein Cover.
+    cover_file         text,
+    cover_content_type text CHECK (cover_content_type IN ('image/jpeg', 'image/png', 'image/webp')),
+    CHECK ((cover_file IS NULL) = (cover_content_type IS NULL))
+);
+CREATE INDEX editions_book_idx ON catalog.editions (book_id);   -- "mindestens eine Ausgabe" prüft das Aggregate
 
 -- ───────── Library ─────────
 CREATE TYPE library.reading_status AS ENUM ('want_to_read', 'reading', 'read');
@@ -59,7 +71,7 @@ CREATE TABLE library.shelves (
 
 CREATE TABLE library.shelf_entries (
     shelf_id uuid NOT NULL REFERENCES library.shelves(id) ON DELETE CASCADE,
-    book_id  uuid NOT NULL,                 -- catalog.books.id (nur ID)
+    book_id  uuid NOT NULL,                 -- catalog.books.id (das Werk, nicht die Ausgabe)
     status   library.reading_status NOT NULL DEFAULT 'want_to_read',
     added_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (shelf_id, book_id)         -- ein Buch höchstens einmal pro Regal
@@ -67,15 +79,15 @@ CREATE TABLE library.shelf_entries (
 
 -- ───────── Reading Progress (eigener Context, unabhängig vom Lesekreis) ─────────
 -- Aggregate ReadingProgress: ein Eintrag pro Nutzer und Buch. Kein Eintrag = noch nicht begonnen (Seite 0).
+-- Gespeichert werden nur die Seiten. Prozent und Spoiler-Vergleich werden ausschließlich im Backend berechnet.
 CREATE TABLE reading.progress (
     user_id           uuid NOT NULL,        -- identity.users.id
     book_id           uuid NOT NULL,        -- catalog.books.id
+    edition_id        uuid NOT NULL,        -- catalog.editions.id (Ausgabe, mit der gelesen wird)
     last_read_page int  NOT NULL DEFAULT 0 CHECK (last_read_page >= 0),
-    total_pages       int  NOT NULL CHECK (total_pages >= 1),  -- Snapshot von catalog.books.page_count
+    total_pages       int  NOT NULL CHECK (total_pages >= 1),  -- Snapshot von catalog.editions.page_count
     updated_at        timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (user_id, book_id),
-    -- Position im Buch in Promille (0..1000), ausgabenunabhängig. Gleiche Rundung wie to_position() im Domain-Code.
-    position          int GENERATED ALWAYS AS ((last_read_page * 1000 + total_pages / 2) / total_pages) STORED,
     CHECK (last_read_page <= total_pages)
 );
 
@@ -84,12 +96,12 @@ CREATE TABLE circles.reading_circles (
     id                    uuid PRIMARY KEY,
     name                  text NOT NULL,
     owner_id              uuid NOT NULL,    -- identity.users.id
-    book_id               uuid NOT NULL,    -- catalog.books.id
+    book_id               uuid NOT NULL,    -- catalog.books.id (das Werk: alle Ausgaben lesen im selben Kreis)
     -- Value Object ReadingPlan (beide NULL oder beide gesetzt)
     plan_start            date,
-    plan_pages_per_week int CHECK (plan_pages_per_week > 0),
+    plan_percent_per_week int CHECK (plan_percent_per_week BETWEEN 1 AND 100),
     created_at            timestamptz NOT NULL DEFAULT now(),
-    CHECK ((plan_start IS NULL) = (plan_pages_per_week IS NULL))
+    CHECK ((plan_start IS NULL) = (plan_percent_per_week IS NULL))
 );
 
 CREATE TABLE circles.memberships (
@@ -105,11 +117,13 @@ CREATE TABLE discussion.threads (
     id         uuid PRIMARY KEY,
     circle_id  uuid NOT NULL,               -- circles.reading_circles.id
     book_id    uuid NOT NULL,               -- catalog.books.id (für den Spoiler-Abgleich)
-    position   int  NOT NULL CHECK (position BETWEEN 1 AND 1000),  -- Spoiler-Schwelle in Promille
+    page       int  NOT NULL CHECK (page >= 1),        -- Thread gilt ab dieser Seite ...
+    total_pages int NOT NULL CHECK (total_pages >= 1), -- ... einer Ausgabe mit dieser Seitenzahl (Snapshot des Autors)
+    CHECK (page <= total_pages),
     title      text NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX threads_circle_idx ON discussion.threads (circle_id, position);
+CREATE INDEX threads_circle_idx ON discussion.threads (circle_id, page);
 
 CREATE TABLE discussion.posts (
     id         uuid PRIMARY KEY,
@@ -120,10 +134,12 @@ CREATE TABLE discussion.posts (
 );
 CREATE INDEX posts_thread_idx ON discussion.posts (thread_id, created_at);
 
--- Read Model ReaderProgress, per Event ReadingProgressChanged (Feld position) aus dem Context Reading gepflegt
+-- Read Model ReaderProgress, vom Backend per Event ReadingProgressChanged gepflegt (Kopie von page und total_pages)
 CREATE TABLE discussion.reader_progress (
-    user_id uuid NOT NULL,
-    book_id uuid NOT NULL,
-    position int NOT NULL CHECK (position BETWEEN 0 AND 1000),
-    PRIMARY KEY (user_id, book_id)
+    user_id     uuid NOT NULL,
+    book_id     uuid NOT NULL,
+    page        int  NOT NULL CHECK (page >= 0),
+    total_pages int  NOT NULL CHECK (total_pages >= 1),
+    PRIMARY KEY (user_id, book_id),
+    CHECK (page <= total_pages)
 );
