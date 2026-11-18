@@ -4,6 +4,7 @@ import { setDevUser } from './api/client'
 import BookCard from './components/BookCard'
 import version from '../package.json'
 import heroImage from '../../img/mohammadreza-charkhgard-UolPvs1rBk8-unsplash.jpg'
+import Login from './components/login.jsx'
 
 // NUR FÜR DIE ENTWICKLUNG: Test-Nutzer aus db/init/02_seed.sql, bis es ein echtes Login gibt.
 const DEV_USERS = [
@@ -18,6 +19,7 @@ export default function App() {
   const [loadError, setLoadError] = useState(null)
   const [dbOk, setDbOk] = useState(null)
   const [userId, setUserId] = useState('')
+  const [isLoginOpen, setIsLoginOpen] = useState(false)
 
   const user = DEV_USERS.find((u) => u.id === userId) ?? DEV_USERS[0]
 
@@ -52,9 +54,39 @@ export default function App() {
           <p>Lesekreise</p>
           <p>Bücher</p>
           {user.admin && <button className="admin" onClick={() => {}}>Buch hinzufügen</button>}
-          <button onClick={() => {}}>Login</button>
+          <button type="button" onClick={() => setIsLoginOpen(true)}>Login</button>
         </section>
         </header>
+      {/* Login-Modal muss noch bereinigt werden. Ersteinmal rudimentäre Implementation */}
+      {isLoginOpen && (
+        <div
+          role="presentation"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setIsLoginOpen(false)
+          }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          }}
+        >
+          <div role="dialog" aria-modal="true" aria-label="Login" style={{ position: 'relative', backgroundColor: '#fff', padding: '2rem', borderRadius: '8px' }}>
+            <button
+              type="button"
+              aria-label="Login schließen"
+              onClick={() => setIsLoginOpen(false)}
+              style={{ position: 'absolute', top: '0.5rem', right: '0.5rem' }}
+            >
+              X
+            </button>
+            <Login />
+          </div>
+        </div>
+      )}
 
       {loadError && <p className="error">Bücher konnten nicht geladen werden: {loadError}</p>}
       <section className="hero" style={{ background: `url(${heroImage}) center / cover`}}>

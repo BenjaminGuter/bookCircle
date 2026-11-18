@@ -61,3 +61,45 @@ section.navigation-elements {
     gap: 3rem;
 
 }
+.login-form{
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    h2{
+        text-align: center;
+    }
+    .login-form-fields{
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    .login-mode{
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        button{
+            border: none;
+            background: none;
+        }
+    }
+    .login-submit{
+        display: flex;
+        justify-content: center;
+        font-size: 1rem;
+        background-color: #15048f;
+        color: #fff;
+        border: none;
+        padding: .5rem 1rem;
+        cursor: pointer;
+    }
+    .login-label{
+        display: flex;
+        flex-direction: row;
+        gap: .5rem;
+        input{
+            flex: 1;
+        }
+    }
+
+}
