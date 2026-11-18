@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from uuid import UUID
 
+from app.shared.book_position import to_position
 from app.shared.errors import DomainError
 from app.shared.events import DomainEvent
 

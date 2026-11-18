@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Response, UploadFile
 from sqlalchemy.orm import Session
 
 from app.catalog.application.covers import ManageEditionCover
@@ -9,8 +9,9 @@ from app.catalog.infrastructure.local_cover_storage import LocalCoverStorage
 from app.catalog.infrastructure.sql_book_repository import SqlBookRepository
 from app.shared.auth import require_admin
 from app.shared.database import get_session
-from app.shared.errors import DomainError, NotFoundError
 
+# Fachliche Fehler (NotFoundError -> 404, DomainError -> 422) werden zentral
+# in app/shared/error_handlers.py in HTTP-Antworten übersetzt.
 router = APIRouter(tags=["catalog"])
 
 
@@ -39,10 +40,7 @@ def list_books(session: Session = Depends(get_session)):
 
 @router.get("/editions/{edition_id}/cover")
 def get_cover(edition_id: UUID, service: ManageEditionCover = Depends(get_cover_service)):
-    try:
-        data, content_type = service.get_cover(edition_id)
-    except NotFoundError as e:
-        raise HTTPException(404, str(e))
+    data, content_type = service.get_cover(edition_id)
     # no-cache: Browser fragen nach, damit ein geändertes Cover sofort sichtbar ist
     return Response(content=data, media_type=content_type, headers={"Cache-Control": "no-cache"})
 
@@ -55,12 +53,7 @@ def put_cover(
     service: ManageEditionCover = Depends(get_cover_service),
 ):
     data = file.file.read(MAX_COVER_BYTES + 1)  # nie mehr als Limit + 1 Byte einlesen
-    try:
-        service.set_cover(edition_id, data)
-    except NotFoundError as e:
-        raise HTTPException(404, str(e))
-    except DomainError as e:
-        raise HTTPException(422, str(e))
+    service.set_cover(edition_id, data)
     return {"cover_url": f"/editions/{edition_id}/cover"}
 
 
@@ -70,7 +63,4 @@ def delete_cover(
     _admin: UUID = Depends(require_admin),
     service: ManageEditionCover = Depends(get_cover_service),
 ):
-    try:
-        service.remove_cover(edition_id)
-    except NotFoundError as e:
-        raise HTTPException(404, str(e))
+    service.remove_cover(edition_id)

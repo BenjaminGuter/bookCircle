@@ -43,6 +43,10 @@ Die Datenbank läuft in Docker, Backend und Frontend laufen lokal mit Hot Reload
    ```
    Dann http://localhost:5173 öffnen. Oben muss "Backend verbunden" stehen.
    Das Frontend ruft das Backend über den Proxy unter `/api` auf.
+6. Tests (im Ordner `backend`, mit aktivierter `.venv`, Datenbank nicht nötig):
+   ```
+   pytest --cov
+   ```
 
 Beenden: `Strg+C` in den beiden Terminals, Datenbank mit `docker compose stop`.
 
@@ -375,16 +379,25 @@ Wir nutzen **GitHub Actions** als CI-Plattform.
 Datei: `.github/workflows/ci.yml`
 
 - **Trigger:** Push auf `main` und jeder Pull Request.
-- **Job `backend`:** Python 3.14 einrichten, Abhängigkeiten installieren, Build-Check (App importierbar), Tests mit `pytest` ausführen.
+- **Job `backend`:** Python 3.14 einrichten, Abhängigkeiten installieren, Build-Check (App importierbar), Tests mit `pytest` und Coverage ausführen. Der Check schlägt fehl, wenn ein Test rot ist oder die Coverage unter 80 % liegt.
 - Die Python-Version in der Pipeline entspricht der lokal genutzten, damit CI und Entwicklung dasselbe testen.
 
-## Tests (`backend/tests/test_main.py`)
+## Tests (`backend/tests/`)
 
-| Test                             | Art              | Prüft                                            |
-| -------------------------------- | ---------------- | ------------------------------------------------ |
-| `test_health_returns_ok`         | Integrationstest | `GET /health` liefert 200 und `{"status": "ok"}` |
-| `test_unknown_route_returns_404` | Integrationstest | unbekannte Route liefert 404                     |
-| `test_spoiler_visibility`        | Unit-Test        | Spoiler-Sichtbarkeit nach Lesefortschritt        |
+Die Tests laufen ohne Datenbank: Repositories und Dateispeicher werden durch In-Memory-Fakes ersetzt (`tests/fakes.py`).
+
+| Datei                  | Prüft                                                                  |
+| ---------------------- | ---------------------------------------------------------------------- |
+| `test_main.py`         | Health-Endpunkt, unbekannte Route liefert 404                          |
+| `test_api.py`          | alle Endpunkte des Catalog-Routers, Admin-Prüfung, Fehlerformat        |
+| `test_catalog.py`      | Buch und Ausgaben, Cover-Upload (Typ, Größe), Dateispeicher            |
+| `test_reading.py`      | Lesefortschritt, Ausgabenwechsel, Events                               |
+| `test_circles.py`      | Lesekreise, Leseplan, Gruppenfortschritt, Beitritt mit eigener Ausgabe |
+| `test_discussion.py`   | Threads, Beiträge, Spoiler-Schutz                                      |
+| `test_book_position.py`| Umrechnung Seite ↔ Promille                                            |
+| `test_architecture.py` | keine Import-Zyklen, Contexts unabhängig, Domain ohne Frameworks       |
+
+Die Coverage wird mit `pytest-cov` gemessen (Einstellungen in `backend/.coveragerc`). Liegt sie unter 80 %, schlägt der Testlauf fehl.
 
 ## Branching und Pull Requests
 
