@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session
 
 from app.catalog.api.router import router as catalog_router
 from app.shared.database import get_session
+from app.shared.error_handlers import register_error_handlers
 
 app = FastAPI(title="BookCircle")
+register_error_handlers(app)
 
 # Erlaubte Frontend-Adressen (Vite: 5173, CRA/Next: 3000), per Env überschreibbar.
 # Mit dem Vite-Proxy (/api) wird CORS im Normalfall gar nicht gebraucht.

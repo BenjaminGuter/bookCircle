@@ -1,18 +1,9 @@
 from dataclasses import dataclass, field
 from uuid import UUID
 
+from app.shared.book_position import to_position
 from app.shared.errors import DomainError
 from app.shared.events import DomainEvent
-
-
-def to_position(page: int, total_pages: int) -> int:
-    """Seite -> Position in Promille (0..1000), ganzzahlig gerundet. Muss zur generierten DB-Spalte passen."""
-    return (page * 1000 + total_pages // 2) // total_pages
-
-
-def to_page(position: int, total_pages: int) -> int:
-    """Position -> Seite in einer bestimmten Ausgabe (für die Anzeige)."""
-    return (position * total_pages + 500) // 1000
 
 
 @dataclass(frozen=True, kw_only=True)
