@@ -49,79 +49,80 @@ def test_health_db_runs_a_query():
 # Buchliste
 
 
-def test_list_books_builds_cover_url(api, book, books, monkeypatch, cover_service):
-    cover_service.set_cover(book.id, PNG)
+def test_list_books_returns_editions_with_cover_url(api, book, edition, books, monkeypatch, cover_service):
+    cover_service.set_cover(edition.id, PNG)
     monkeypatch.setattr(catalog_router, "SqlBookRepository", lambda session: books)
     app.dependency_overrides[get_session] = lambda: None
 
     [entry] = api.get("/books").json()
 
     assert entry["title"] == book.title
-    assert entry["cover_url"] == f"/books/{book.id}/cover"
     assert entry["authors"] == ["Testautor"]
+    [listed] = entry["editions"]
+    assert listed["id"] == str(edition.id)
+    assert listed["page_count"] == edition.page_count
+    assert listed["format"] == "hardcover"
+    assert listed["cover_url"] == f"/editions/{edition.id}/cover"
 
 
 def test_list_books_without_cover(api, book, monkeypatch):
     repo = InMemoryBookRepository(book)
     monkeypatch.setattr(catalog_router, "SqlBookRepository", lambda session: repo)
     app.dependency_overrides[get_session] = lambda: None
-    assert api.get("/books").json()[0]["cover_url"] is None
+    assert api.get("/books").json()[0]["editions"][0]["cover_url"] is None
 
 
 # Cover-Endpunkte
 
-
-def test_upload_and_download_cover(api, book):
-    response = api.put(f"/books/{book.id}/cover", files={"file": ("x.png", PNG)})
+def test_upload_and_download_cover(api, edition):
+    response = api.put(f"/editions/{edition.id}/cover", files={"file": ("x.png", PNG)})
     assert response.status_code == 200
-    assert response.json() == {"cover_url": f"/books/{book.id}/cover"}
+    assert response.json() == {"cover_url": f"/editions/{edition.id}/cover"}
 
-    response = api.get(f"/books/{book.id}/cover")
+    response = api.get(f"/editions/{edition.id}/cover")
     assert response.status_code == 200
     assert response.content == PNG
     assert response.headers["content-type"] == "image/png"
     assert response.headers["cache-control"] == "no-cache"
 
 
-def test_content_type_of_client_is_ignored(api, book):
+def test_content_type_of_client_is_ignored(api, edition):
     """Der Server erkennt den Typ an den Bytes, nicht an der Angabe des Browsers."""
-    api.put(f"/books/{book.id}/cover", files={"file": ("x.png", JPEG, "image/png")})
-    assert api.get(f"/books/{book.id}/cover").headers["content-type"] == "image/jpeg"
+    api.put(f"/editions/{edition.id}/cover", files={"file": ("x.png", JPEG, "image/png")})
+    assert api.get(f"/editions/{edition.id}/cover").headers["content-type"] == "image/jpeg"
 
 
-def test_upload_invalid_file_returns_422(api, book):
-    response = api.put(
-        f"/books/{book.id}/cover", files={"file": ("x.txt", b"kein Bild")}
-    )
+def test_upload_invalid_file_returns_422(api, edition):
+    response = api.put(f"/editions/{edition.id}/cover", files={"file": ("x.txt", b"kein Bild")})
     assert response.status_code == 422
 
 
-def test_error_response_format(api, book):
+def test_error_response_format(api, edition):
     """Zentrale Fehlerbehandlung: gleiches Format wie FastAPIs HTTPException."""
-    response = api.get(f"/books/{uuid4()}/cover")
-    assert response.json() == {"detail": "Buch nicht gefunden"}
-    response = api.put(f"/books/{book.id}/cover", files={"file": ("x.png", b"")})
+    response = api.get(f"/editions/{uuid4()}/cover")
+    assert response.json() == {"detail": "Ausgabe nicht gefunden"}
+    response = api.put(f"/editions/{edition.id}/cover", files={"file": ("x.png", b"")})
     assert response.json() == {"detail": "Leere Datei"}
 
 
-def test_cover_for_unknown_book_returns_404(api):
+def test_cover_for_unknown_edition_returns_404(api):
     unknown = uuid4()
-    assert api.get(f"/books/{unknown}/cover").status_code == 404
+    assert api.get(f"/editions/{unknown}/cover").status_code == 404
     assert (
-        api.put(f"/books/{unknown}/cover", files={"file": ("x.png", PNG)}).status_code
+        api.put(f"/editions/{unknown}/cover", files={"file": ("x.png", PNG)}).status_code
         == 404
     )
-    assert api.delete(f"/books/{unknown}/cover").status_code == 404
+    assert api.delete(f"/editions/{unknown}/cover").status_code == 404
 
 
-def test_delete_cover(api, book):
-    api.put(f"/books/{book.id}/cover", files={"file": ("x.png", PNG)})
-    assert api.delete(f"/books/{book.id}/cover").status_code == 204
-    assert api.get(f"/books/{book.id}/cover").status_code == 404
+def test_delete_cover(api, edition):
+    api.put(f"/editions/{edition.id}/cover", files={"file": ("x.png", PNG)})
+    assert api.delete(f"/editions/{edition.id}/cover").status_code == 204
+    assert api.get(f"/editions/{edition.id}/cover").status_code == 404
 
 
 def test_invalid_uuid_returns_422(api):
-    assert api.get("/books/keine-uuid/cover").status_code == 422
+    assert api.get("/editions/keine-uuid/cover").status_code == 422
 
 
 # Admin-Prüfung (require_admin)
@@ -146,13 +147,13 @@ def test_admin_is_accepted():
     )
 
 
-def test_upload_without_admin_header_is_rejected(cover_service, book):
+def test_upload_without_admin_header_is_rejected(cover_service, edition):
     """Ohne Override greift die echte Prüfung: kein Header, kein Upload."""
     app.dependency_overrides[catalog_router.get_cover_service] = lambda: cover_service
     app.dependency_overrides[get_session] = lambda: FakeSession()
     try:
         response = TestClient(app).put(
-            f"/books/{book.id}/cover", files={"file": ("x.png", PNG)}
+            f"/editions/{edition.id}/cover", files={"file": ("x.png", PNG)}
         )
     finally:
         app.dependency_overrides.clear()

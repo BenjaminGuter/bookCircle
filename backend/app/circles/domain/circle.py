@@ -7,18 +7,24 @@ from app.shared.errors import DomainError
 
 @dataclass(frozen=True)
 class ReadingPlan:
-    """Value Object: ab wann und wie viele Seiten pro Woche."""
+    """Value Object: ab wann und wie viel Prozent des Buchs pro Woche.
+    Prozent statt Seiten, weil Ausgaben unterschiedlich dick sind (jedes Mitglied hat seine eigene Seitenzahl)."""
     start: date
-    pages_per_week: int
+    percent_per_week: int
 
     def __post_init__(self) -> None:
-        if self.pages_per_week < 1:
-            raise DomainError("Mindestens eine Seite pro Woche")
+        if not 1 <= self.percent_per_week <= 100:
+            raise DomainError("Prozent pro Woche muss zwischen 1 und 100 liegen")
+
+    def target_percent(self, today: date) -> int:
+        """Soll-Stand in Prozent nach den bisher vollständig vergangenen Wochen (0 vor dem Start, höchstens 100)."""
+        weeks = max(0, (today - self.start).days) // 7
+        return min(100, weeks * self.percent_per_week)
 
 
 @dataclass
 class Membership:
-    user_id: UUID
+    user_id: UUID  # Fortschritt liegt NICHT hier, sondern im Context Reading
 
 
 @dataclass
@@ -26,7 +32,7 @@ class ReadingCircle:
     id: UUID
     name: str
     owner_id: UUID
-    book_id: UUID
+    book_id: UUID  # das Werk: alle Ausgaben lesen im selben Kreis
     memberships: dict[UUID, Membership] = field(default_factory=dict)
     reading_plan: ReadingPlan | None = None
 

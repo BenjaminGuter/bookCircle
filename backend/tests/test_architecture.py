@@ -14,6 +14,13 @@ from pathlib import Path
 APP = Path(__file__).resolve().parents[1] / "app"
 CONTEXTS = {"catalog", "circles", "discussion", "reading"}
 FRAMEWORKS = ("fastapi", "sqlalchemy", "psycopg")
+# Bewusst erlaubte Abhängigkeiten zwischen Contexts. Jede Ausnahme braucht eine Begründung.
+ALLOWED_CONTEXT_IMPORTS = {
+    # Use Case JoinCircle (circles/application): Beim Beitritt wird mit der gewählten Ausgabe
+    # der Lesefortschritt gestartet oder umgerechnet. Der Use Case verbindet deshalb beide Contexts.
+    # TODO: Offene Frage fürs Team: lieber über ein Event entkoppeln (wie Reading -> Discussion)?
+    ("circles", "reading"),
+}
 
 
 def imports_by_module() -> dict[str, set[str]]:
@@ -84,10 +91,12 @@ def test_no_cycles_between_packages():
 
 
 def test_bounded_contexts_do_not_import_each_other():
-    """Contexts kommunizieren nur über shared (Events, Fehler), nie direkt."""
+    """Contexts kommunizieren nur über shared (Events, Fehler), nie direkt.
+    Ausnahmen stehen begründet in ALLOWED_CONTEXT_IMPORTS."""
     for source, targets in package_graph().items():
         if source in CONTEXTS:
-            assert not targets & CONTEXTS, f"{source} importiert {targets & CONTEXTS}"
+            forbidden = {t for t in targets & CONTEXTS if (source, t) not in ALLOWED_CONTEXT_IMPORTS}
+            assert not forbidden, f"{source} importiert {forbidden}"
 
 
 def test_shared_does_not_depend_on_contexts():

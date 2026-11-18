@@ -1,7 +1,7 @@
 {
   "name": "bookcircle-frontend",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -19,5 +19,8 @@
     "@vitejs/plugin-react": "^6.1.2",
     "oxlint": "^1.90.0",
     "vite": "^8.3.6"
+  },
+  "optionalDependencies": {
+    "@rolldown/binding-darwin-arm64": "^1.3.3"
   }
 }

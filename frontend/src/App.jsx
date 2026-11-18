@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { getHealth, listBooks } from './api/books'
 import { setDevUser } from './api/client'
 import BookCard from './components/BookCard'
+import version from '../package.json'
+import heroImage from '../../img/mohammadreza-charkhgard-UolPvs1rBk8-unsplash.jpg'
+import Login from './components/login.jsx'
 
 // NUR FÜR DIE ENTWICKLUNG: Test-Nutzer aus db/init/02_seed.sql, bis es ein echtes Login gibt.
 const DEV_USERS = [
@@ -16,6 +19,7 @@ export default function App() {
   const [loadError, setLoadError] = useState(null)
   const [dbOk, setDbOk] = useState(null)
   const [userId, setUserId] = useState('')
+  const [isLoginOpen, setIsLoginOpen] = useState(false)
 
   const user = DEV_USERS.find((u) => u.id === userId) ?? DEV_USERS[0]
 
@@ -44,8 +48,62 @@ export default function App() {
 
   return (
     <main>
-      <header>
-        <h1>BookCircle</h1>
+      <header id="global-header" >
+        <section className="navigation-elements">
+          <h1>BookCircle</h1>
+          <p>Lesekreise</p>
+          <p>Bücher</p>
+          {user.admin && <button className="admin" onClick={() => {}}>Buch hinzufügen</button>}
+          <button type="button" onClick={() => setIsLoginOpen(true)}>Login</button>
+        </section>
+        </header>
+      {/* Login-Modal muss noch bereinigt werden. Ersteinmal rudimentäre Implementation */}
+      {isLoginOpen && (
+        <div
+          role="presentation"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setIsLoginOpen(false)
+          }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          }}
+        >
+          <div role="dialog" aria-modal="true" aria-label="Login" style={{ position: 'relative', backgroundColor: '#fff', padding: '2rem', borderRadius: '8px' }}>
+            <button
+              type="button"
+              aria-label="Login schließen"
+              onClick={() => setIsLoginOpen(false)}
+              style={{ position: 'absolute', top: '0.5rem', right: '0.5rem' }}
+            >
+              X
+            </button>
+            <Login />
+          </div>
+        </div>
+      )}
+
+      {loadError && <p className="error">Bücher konnten nicht geladen werden: {loadError}</p>}
+      <section className="hero" style={{ background: `url(${heroImage}) center / cover`}}>
+        <h2 className="hero-title">Willkommen bei BookCircle</h2>
+      </section>
+      <section>
+        <h2 className="section-title">Aktuelle Bücher</h2>
+        <section className="grid book-list">
+          {books.map((book) => (
+            <BookCard key={book.id} book={book} isAdmin={user.admin} onChanged={loadBooks} />
+          ))}
+        </section>
+      </section>
+      <section className="devTools" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'fixed', bottom: 0, left: 0, right: 0, padding: '1rem 10rem', backgroundColor: '#CBC0AD', }}>
+        <span className="devTools" style={{ fontWeight: 'bold' }}> Dev-Tools</span>
+        <span className="version">Version: {version.version}
+        </span>
         <span className={`status ${dbOk === null ? '' : dbOk ? 'ok' : 'bad'}`}>
           {dbOk === null ? 'Backend prüfen …' : dbOk ? 'Backend verbunden' : 'Backend nicht erreichbar'}
         </span>
@@ -57,14 +115,6 @@ export default function App() {
             ))}
           </select>
         </label>
-      </header>
-
-      {loadError && <p className="error">Bücher konnten nicht geladen werden: {loadError}</p>}
-
-      <section className="grid">
-        {books.map((book) => (
-          <BookCard key={book.id} book={book} isAdmin={user.admin} onChanged={loadBooks} />
-        ))}
       </section>
     </main>
   )

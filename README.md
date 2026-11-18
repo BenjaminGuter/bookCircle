@@ -27,7 +27,7 @@ Die Datenbank läuft in Docker, Backend und Frontend laufen lokal mit Hot Reload
 4. Backend (neues Terminal):
    ```
    cd backend
-   python -m venv .venv                   (nur beim ersten Mal)
+   python -m venv .venv                   (nur beim ersten Mal) -> Mac: python3 -m venv .venv
    .venv\Scripts\activate                 (macOS/Linux: source .venv/bin/activate)
    pip install -r requirements.txt
    uvicorn app.main:app --reload
@@ -43,26 +43,30 @@ Die Datenbank läuft in Docker, Backend und Frontend laufen lokal mit Hot Reload
    ```
    Dann http://localhost:5173 öffnen. Oben muss "Backend verbunden" stehen.
    Das Frontend ruft das Backend über den Proxy unter `/api` auf.
+6. Tests (im Ordner `backend`, mit aktivierter `.venv`, Datenbank nicht nötig):
+   ```
+   pytest --cov
+   ```
 
 Beenden: `Strg+C` in den beiden Terminals, Datenbank mit `docker compose stop`.
 
 ## Ports
 
-| Dienst | Port | Adresse |
-|---|---|---|
-| Frontend (Vite) | 5173 | http://localhost:5173 |
-| Backend (FastAPI) | 8000 | http://localhost:8000/docs |
-| Datenbank (PostgreSQL) | 5432 | `localhost:5432` |
+| Dienst                 | Port | Adresse                    |
+| ---------------------- | ---- | -------------------------- |
+| Frontend (Vite)        | 5173 | http://localhost:5173      |
+| Backend (FastAPI)      | 8000 | http://localhost:8000/docs |
+| Datenbank (PostgreSQL) | 5432 | `localhost:5432`           |
 
 ## Testnutzer (nur Entwicklung, kein echtes Login)
 
 Im Frontend oben über "Dev-Nutzer" wählbar, per API über den Header `X-User-Id`:
 
-| Nutzer | ID | Rolle |
-|---|---|---|
-| Jana | `11111111-1111-1111-1111-111111111111` | Admin |
-| Ben | `22222222-2222-2222-2222-222222222222` | Leser |
-| Maxi | `33333333-3333-3333-3333-333333333333` | Leser |
+| Nutzer | ID                                     | Rolle |
+| ------ | -------------------------------------- | ----- |
+| Jana   | `11111111-1111-1111-1111-111111111111` | Admin |
+| Ben    | `22222222-2222-2222-2222-222222222222` | Leser |
+| Maxi   | `33333333-3333-3333-3333-333333333333` | Leser |
 
 Nur Admins können Buchcover hinzufügen, ändern und löschen (JPEG, PNG oder WebP, maximal 2 MB).
 Die Cover-Dateien liegen lokal in `backend/data/covers` (nicht im Repo), in der Datenbank stehen nur die Metadaten.
@@ -71,31 +75,35 @@ Die Cover-Dateien liegen lokal in `backend/data/covers` (nicht im Repo), in der 
 
 Die Skripte in `db/init/` (Schema und Testdaten) laufen nur, wenn das Datenbank-Volume leer ist.
 Nach einem `git pull`, der das Schema ändert, oder um die Testdaten neu zu laden:
+
 ```
 docker compose down -v
 docker compose up -d
 ```
+
 Achtung: Das löscht alle lokalen Datenbankdaten. Hochgeladene Cover-Dateien in `backend/data/covers`
 bleiben liegen, gehören danach aber zu keinem Buch mehr und können gelöscht werden.
 
 Direkter Zugriff:
+
 ```
 docker compose exec db psql -U bookcircle -d bookcircle
 ```
+
 Oder mit einem Tool wie DBeaver: Host `localhost`, Port `5432`, Datenbank und Benutzer `bookcircle`,
 Passwort aus der `.env`. Die Tabellen liegen in Schemas (`catalog.books`, `reading.progress`, ...),
 Abfragen brauchen also immer das Schema.
 
 ## Häufige Probleme
 
-| Problem | Lösung |
-|---|---|
-| `error during connect ... dockerDesktopLinuxEngine` | Docker Desktop starten und warten, bis die Engine läuft |
-| `port is already allocated` (5432) | Programm auf dem Port beenden oder in der `.env` `POSTGRES_PORT` ändern, dabei auch den Port in `DATABASE_URL` anpassen |
-| Frontend zeigt "Backend nicht erreichbar" | Läuft das Backend auf Port 8000? |
-| Backend: Verbindungsfehler zur DB | Passwort in `DATABASE_URL` der `.env` prüfen, Host muss `localhost` sein; `docker compose ps` prüfen |
-| `relation "books" does not exist` | Tabellen immer mit Schema schreiben: `catalog.books` |
-| Backend startet nicht nach `git pull` | `pip install -r requirements.txt` bzw. `npm install` |
+| Problem                                             | Lösung                                                                                                                  |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `error during connect ... dockerDesktopLinuxEngine` | Docker Desktop starten und warten, bis die Engine läuft                                                                 |
+| `port is already allocated` (5432)                  | Programm auf dem Port beenden oder in der `.env` `POSTGRES_PORT` ändern, dabei auch den Port in `DATABASE_URL` anpassen |
+| Frontend zeigt "Backend nicht erreichbar"           | Läuft das Backend auf Port 8000?                                                                                        |
+| Backend: Verbindungsfehler zur DB                   | Passwort in `DATABASE_URL` der `.env` prüfen, Host muss `localhost` sein; `docker compose ps` prüfen                    |
+| `relation "books" does not exist`                   | Tabellen immer mit Schema schreiben: `catalog.books`                                                                    |
+| Backend startet nicht nach `git pull`               | `pip install -r requirements.txt` bzw. `npm install`                                                                    |
 
 ---
 
@@ -371,16 +379,25 @@ Wir nutzen **GitHub Actions** als CI-Plattform.
 Datei: `.github/workflows/ci.yml`
 
 - **Trigger:** Push auf `main` und jeder Pull Request.
-- **Job `backend`:** Python 3.14 einrichten, Abhängigkeiten installieren, Build-Check (App importierbar), Tests mit `pytest` ausführen.
+- **Job `backend`:** Python 3.14 einrichten, Abhängigkeiten installieren, Build-Check (App importierbar), Tests mit `pytest` und Coverage ausführen. Der Check schlägt fehl, wenn ein Test rot ist oder die Coverage unter 80 % liegt.
 - Die Python-Version in der Pipeline entspricht der lokal genutzten, damit CI und Entwicklung dasselbe testen.
 
-## Tests (`backend/tests/test_main.py`)
+## Tests (`backend/tests/`)
 
-| Test                             | Art              | Prüft                                            |
-| -------------------------------- | ---------------- | ------------------------------------------------ |
-| `test_health_returns_ok`         | Integrationstest | `GET /health` liefert 200 und `{"status": "ok"}` |
-| `test_unknown_route_returns_404` | Integrationstest | unbekannte Route liefert 404                     |
-| `test_spoiler_visibility`        | Unit-Test        | Spoiler-Sichtbarkeit nach Lesefortschritt        |
+Die Tests laufen ohne Datenbank: Repositories und Dateispeicher werden durch In-Memory-Fakes ersetzt (`tests/fakes.py`).
+
+| Datei                  | Prüft                                                                  |
+| ---------------------- | ---------------------------------------------------------------------- |
+| `test_main.py`         | Health-Endpunkt, unbekannte Route liefert 404                          |
+| `test_api.py`          | alle Endpunkte des Catalog-Routers, Admin-Prüfung, Fehlerformat        |
+| `test_catalog.py`      | Buch und Ausgaben, Cover-Upload (Typ, Größe), Dateispeicher            |
+| `test_reading.py`      | Lesefortschritt, Ausgabenwechsel, Events                               |
+| `test_circles.py`      | Lesekreise, Leseplan, Gruppenfortschritt, Beitritt mit eigener Ausgabe |
+| `test_discussion.py`   | Threads, Beiträge, Spoiler-Schutz                                      |
+| `test_book_position.py`| Umrechnung Seite ↔ Promille                                            |
+| `test_architecture.py` | keine Import-Zyklen, Contexts unabhängig, Domain ohne Frameworks       |
+
+Die Coverage wird mit `pytest-cov` gemessen (Einstellungen in `backend/.coveragerc`). Liegt sie unter 80 %, schlägt der Testlauf fehl.
 
 ## Branching und Pull Requests
 
