@@ -74,8 +74,8 @@ CREATE TABLE reading.progress (
     total_pages       int  NOT NULL CHECK (total_pages >= 1),  -- Snapshot von catalog.books.page_count
     updated_at        timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (user_id, book_id),
-    -- Position im Buch in Promille (0..1000), ausgabenunabhängig. Gleiche Rundung wie to_position() im Domain-Code.
-    position          int GENERATED ALWAYS AS ((last_read_page * 1000 + total_pages / 2) / total_pages) STORED,
+    -- Position im Buch in Promille (0..1000), ausgabenunabhängig. Gleiche Abrundung wie to_position() im Domain-Code.
+    position          int GENERATED ALWAYS AS ((last_read_page * 1000) / total_pages) STORED,
     CHECK (last_read_page <= total_pages)
 );
 

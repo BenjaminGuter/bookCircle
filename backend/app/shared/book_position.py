@@ -14,8 +14,8 @@ MAX_POSITION = 1000
 
 
 def to_position(page: int, total_pages: int) -> int:
-    """Seite -> Position in Promille (0..1000), ganzzahlig gerundet."""
-    return (page * MAX_POSITION + total_pages // 2) // total_pages
+    """Seite -> Position in Promille (0..1000), ganzzahlig abgerundet."""
+    return page * MAX_POSITION // total_pages
 
 
 def to_page(position: int, total_pages: int) -> int:
