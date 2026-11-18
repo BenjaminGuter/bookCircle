@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { getHealth, listBooks } from './api/books'
 import { setDevUser } from './api/client'
 import BookCard from './components/BookCard'
+import version from '../package.json'
+import heroImage from '../../img/mohammadreza-charkhgard-UolPvs1rBk8-unsplash.jpg'
 
 // NUR FÜR DIE ENTWICKLUNG: Test-Nutzer aus db/init/02_seed.sql, bis es ein echtes Login gibt.
 const DEV_USERS = [
@@ -44,8 +46,26 @@ export default function App() {
 
   return (
     <main>
-      <header>
+      <header id="global-header" >
         <h1>BookCircle</h1>
+      </header>
+
+      {loadError && <p className="error">Bücher konnten nicht geladen werden: {loadError}</p>}
+      <section className="hero" style={{ background: `url(${heroImage}) center / cover`}}>
+        <h2 className="hero-title">Willkommen bei BookCircle</h2>
+      </section>
+      <section>
+        <h2 className="section-title">Aktuelle Bücher</h2>
+        <section className="grid book-list">
+          {books.map((book) => (
+            <BookCard key={book.id} book={book} isAdmin={user.admin} onChanged={loadBooks} />
+          ))}
+        </section>
+      </section>
+      <section className="devTools" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'fixed', bottom: 0, left: 0, right: 0, padding: '1rem 10rem', backgroundColor: '#CBC0AD', }}>
+        <span className="devTools" style={{ fontWeight: 'bold' }}> Dev-Tools</span>
+        <span className="version">Version: {version.version}
+        </span>
         <span className={`status ${dbOk === null ? '' : dbOk ? 'ok' : 'bad'}`}>
           {dbOk === null ? 'Backend prüfen …' : dbOk ? 'Backend verbunden' : 'Backend nicht erreichbar'}
         </span>
@@ -57,14 +77,6 @@ export default function App() {
             ))}
           </select>
         </label>
-      </header>
-
-      {loadError && <p className="error">Bücher konnten nicht geladen werden: {loadError}</p>}
-
-      <section className="grid">
-        {books.map((book) => (
-          <BookCard key={book.id} book={book} isAdmin={user.admin} onChanged={loadBooks} />
-        ))}
       </section>
     </main>
   )
